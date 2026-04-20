@@ -138,7 +138,7 @@ export default function TestsPage() {
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileUpload} 
-            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, .pdf, .docx" 
+            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
             className="hidden" 
           />
           <button onClick={() => setBulkModalOpen(true)} className="btn-secondary flex items-center gap-2">

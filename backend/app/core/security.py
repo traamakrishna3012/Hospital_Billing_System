@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
+import uuid
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -44,6 +45,7 @@ def create_access_token(
     expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     payload = {
+        "jti": str(uuid.uuid4()),
         "sub": str(user_id),
         "role": role,
         "type": "access",
@@ -64,6 +66,7 @@ def create_refresh_token(user_id: UUID, tenant_id: UUID | None) -> str:
     expire = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
     payload = {
+        "jti": str(uuid.uuid4()),
         "sub": str(user_id),
         "type": "refresh",
         "iat": now,

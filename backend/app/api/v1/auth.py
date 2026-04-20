@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,7 @@ from app.core.security import (
 from app.core.deps import CurrentUser, DBSession
 from app.models.tenant import Tenant
 from app.models.user import User
+from app.models.token_blocklist import TokenBlocklist
 from app.schemas.schemas import (
     LoginRequest,
     RefreshRequest,
@@ -30,6 +31,7 @@ from app.schemas.schemas import (
     UserResponse,
 )
 from app.services.email_service import send_welcome_email
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -48,7 +50,8 @@ def _slugify(name: str) -> str:
     status_code=status.HTTP_201_CREATED,
     summary="Register a new clinic",
 )
-async def register(data: RegisterRequest, db: DBSession, background_tasks: BackgroundTasks):
+@limiter.limit("5/minute")
+async def register(request: Request, data: RegisterRequest, db: DBSession, background_tasks: BackgroundTasks):
     """
     Register a new clinic/hospital. Creates a tenant and an admin user.
     Returns JWT tokens for immediate authentication.
@@ -124,7 +127,8 @@ async def register(data: RegisterRequest, db: DBSession, background_tasks: Backg
 
 
 @router.post("/login", response_model=TokenResponse, summary="User login")
-async def login(data: LoginRequest, db: DBSession):
+@limiter.limit("5/minute")
+async def login(request: Request, data: LoginRequest, db: DBSession):
     """Authenticate with email and password. Returns JWT tokens."""
     result = await db.execute(
         select(User).where(User.email == data.email, User.is_active == True)  # noqa: E712
@@ -171,6 +175,21 @@ async def refresh_token(data: RefreshRequest, db: DBSession):
             detail="Invalid refresh token",
         )
 
+    jti = payload.get("jti")
+    if not jti:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token structure",
+        )
+
+    # Check if token is blocklisted
+    is_blocklisted = await db.execute(select(TokenBlocklist).where(TokenBlocklist.jti == jti))
+    if is_blocklisted.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has been revoked",
+        )
+
     user_id = UUID(payload["sub"])
     
     result = await db.execute(
@@ -214,3 +233,43 @@ async def get_me(current_user: CurrentUser, db: DBSession):
     user_data = UserResponse.model_validate(current_user).model_dump()
     user_data["tenant_modules"] = tenant_modules
     return user_data
+
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+bearer_scheme = HTTPBearer(auto_error=False)
+
+@router.post("/logout", summary="Logout user and invalidate token")
+async def logout(
+    request: Request,
+    db: DBSession,
+    data: RefreshRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+):
+    """
+    Invalidates the current refresh token and the provided access token by adding their JTIs to the blocklist.
+    """
+    import datetime
+
+    # 1. Blocklist Refresh Token
+    if data.refresh_token:
+        refresh_payload = decode_token(data.refresh_token)
+        if refresh_payload and refresh_payload.get("jti"):
+            exp_timestamp = refresh_payload.get("exp")
+            if exp_timestamp:
+                expires_at = datetime.datetime.fromtimestamp(exp_timestamp, tz=datetime.timezone.utc)
+                db.add(TokenBlocklist(jti=refresh_payload["jti"], expires_at=expires_at))
+
+    # 2. Blocklist Access Token
+    if credentials and credentials.credentials:
+        access_payload = decode_token(credentials.credentials)
+        if access_payload and access_payload.get("jti"):
+            exp_timestamp = access_payload.get("exp")
+            if exp_timestamp:
+                expires_at = datetime.datetime.fromtimestamp(exp_timestamp, tz=datetime.timezone.utc)
+                
+                # Check for existing to avoid PrimaryKey integrity error if somehow same
+                existing = await db.execute(select(TokenBlocklist).where(TokenBlocklist.jti == access_payload["jti"]))
+                if not existing.scalar_one_or_none():
+                    db.add(TokenBlocklist(jti=access_payload["jti"], expires_at=expires_at))
+
+    await db.commit()
+    return {"message": "Successfully logged out"}

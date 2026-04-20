@@ -141,10 +141,16 @@ app = FastAPI(
 # ── Middleware ────────────────────────────────────────────────
 
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.core.limiter import limiter
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:.*",
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -159,6 +165,16 @@ app.add_middleware(
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch unhandled exceptions and return structured error response."""
     logger.error(f"Unhandled error: {exc}", exc_info=True)
+    
+    if settings.is_production:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "detail": "An internal server error occurred",
+                "type": "InternalServerError",
+            },
+        )
+    
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={

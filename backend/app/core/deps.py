@@ -17,6 +17,7 @@ from app.core.database import get_async_session
 from app.core.security import decode_token
 from app.models.user import User
 from app.models.tenant import Tenant
+from app.models.token_blocklist import TokenBlocklist
 
 # Bearer token scheme
 bearer_scheme = HTTPBearer(auto_error=True)
@@ -44,8 +45,18 @@ async def get_current_user(
         raise credentials_exception
 
     user_id_str = payload.get("sub")
-    if user_id_str is None:
+    jti = payload.get("jti")
+    if user_id_str is None or jti is None:
         raise credentials_exception
+
+    # Check if token is blocklisted
+    is_blocklisted = await db.execute(select(TokenBlocklist).where(TokenBlocklist.jti == jti))
+    if is_blocklisted.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked/logged out",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     try:
         user_id = UUID(user_id_str)

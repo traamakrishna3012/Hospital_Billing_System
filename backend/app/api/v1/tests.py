@@ -12,8 +12,6 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
 import pandas as pd
 import io
-import fitz  # PyMuPDF
-import docx
 
 from app.core.deps import CurrentUser, DBSession, TenantID
 from app.models.test import MedicalTest, TestCategory
@@ -38,30 +36,8 @@ def _parse_file(file_content: bytes, filename: str) -> pd.DataFrame:
             df = pd.read_csv(io.BytesIO(file_content))
         elif ext in ['xls', 'xlsx']:
             df = pd.read_excel(io.BytesIO(file_content))
-        elif ext == 'docx':
-            doc = docx.Document(io.BytesIO(file_content))
-            data = []
-            if doc.tables:
-                table = doc.tables[0]
-                keys = None
-                for i, row in enumerate(table.rows):
-                    text = [cell.text.strip() for cell in row.cells]
-                    if i == 0:
-                        keys = text
-                        continue
-                    data.append(dict(zip(keys, text)))
-                df = pd.DataFrame(data)
-        elif ext == 'pdf':
-            doc = fitz.open(stream=file_content, filetype="pdf")
-            all_text = ""
-            for page in doc:
-                all_text += page.get_text("text") + "\n"
-            
-            # Very basic whitespace/csv parsing fallback for raw PDF text
-            lines = [line.strip() for line in all_text.split('\n') if line.strip()]
-            data = [line.split(',') for line in lines if ',' in line]
-            if len(data) > 1:
-                df = pd.DataFrame(data[1:], columns=data[0])
+        else:
+            raise ValueError("Unsupported format. Please use CSV or Excel (.xlsx)")
     except Exception as e:
         raise ValueError(f"Failed to parse {ext} file: {str(e)}")
         
