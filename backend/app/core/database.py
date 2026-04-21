@@ -44,10 +44,6 @@ engine = create_async_engine(
     pool_timeout=30,
     pool_recycle=1800,
     pool_pre_ping=True,
-    prepared_statement_cache_size=0,
-    connect_args={
-        "statement_cache_size": 0,
-    },
 )
 
 # Session factory
