@@ -1,0 +1,36 @@
+services:
+  # Staging Environment
+  - type: web
+    name: hospital-api-staging
+    env: docker
+    dockerContext: backend
+    dockerfilePath: ./backend/Dockerfile
+    branch: staging
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: DATABASE_URL
+        sync: false # Set securely in dashboard
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: "['https://your-staging-frontend-url.com']"
+
+  # Production Environment
+  - type: web
+    name: hospital-api-main
+    env: docker
+    dockerContext: backend
+    dockerfilePath: ./backend/Dockerfile
+    branch: main
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Set securely in dashboard
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: "['https://your-production-frontend-url.com']"

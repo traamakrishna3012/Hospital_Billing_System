@@ -7,7 +7,7 @@ venv/
 
 # Environment
 .env
-*.env.local
+.env.*
 
 # Build output
 dist/

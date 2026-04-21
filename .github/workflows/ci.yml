@@ -1,0 +1,57 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    branches:
+      - main
+      - staging
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+        
+    - name: Install Backend Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        cd backend
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        
+    # Example placeholder for tests
+    # - name: Run Pytest
+    #   run: |
+    #     cd backend
+    #     pytest
+
+    - name: Build Backend Docker Image
+      run: |
+        cd backend
+        docker build -t hospital-backend:latest .
+        
+    # Frontend build test
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install Frontend Dependencies & Build
+      run: |
+        cd frontend
+        npm install
+        npm run build
+
+  # Render handles the actual deployment automatically via GitHub integration,
+  # but this workflow ensures no broken code is merged into staging or main.
