@@ -30,8 +30,12 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def parse_database_url(cls, v: str) -> str:
-        if v and v.startswith("postgresql://"):
-            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if v:
+            if v.startswith("postgresql://"):
+                v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            if "localhost" not in v and "ssl" not in v.lower():
+                separator = "&" if "?" in v else "?"
+                v += f"{separator}ssl=require"
         return v
 
     # ── JWT ───────────────────────────────────────────────────
