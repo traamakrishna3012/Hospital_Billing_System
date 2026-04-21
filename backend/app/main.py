@@ -107,10 +107,13 @@ async def lifespan(app: FastAPI):
                 select(User).where(User.email == "superadmin@hospitalbilling.com")
             )
             if not result.scalar_one_or_none():
-                db.add(User(
-                    email="superadmin@hospitalbilling.com",
-                    password_hash=hash_password("SuperSecure123"),
-                    full_name="System Super Admin",
+                import os
+                super_pw = os.getenv("SUPERADMIN_PASSWORD")
+                if super_pw:
+                    db.add(User(
+                        email="superadmin@hospitalbilling.com",
+                        password_hash=hash_password(super_pw),
+                        full_name="System Super Admin",
                     role="superadmin",
                     tenant_id=None,
                     is_active=True,
@@ -133,9 +136,9 @@ app = FastAPI(
     description="Multi-tenant hospital/clinic billing system with patient, doctor, test, and billing management.",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
 )
 
 # ── Middleware ────────────────────────────────────────────────
@@ -157,7 +160,14 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Add standard security headers to all responses."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 # ── Global Exception Handlers ────────────────────────────────
 

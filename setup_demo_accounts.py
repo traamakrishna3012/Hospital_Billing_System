@@ -1,6 +1,7 @@
 import requests
 import json
 import time
+import os
 
 BASE_URL = "https://hospital-billing-system-pccq.onrender.com/api/v1"
 
@@ -14,7 +15,7 @@ admin_data = {
     "clinic_address": "123 Health Street",
     "admin_name": "Admin",
     "admin_email": "admin@demohospital.com",
-    "admin_password": "Password123"
+    "admin_password": os.environ["DEMO_ADMIN_PASSWORD"]
 }
 
 print("Registering Admin & Clinic...")
@@ -83,7 +84,7 @@ print("Patient: Alex Patient")
 # Note: In a real system, you'd do this via a secure internal script or directly in DB
 print("\nSeeding SuperAdmin (Optional check via Backend API)...")
 super_admin_email = "superadmin@hospitalbilling.com"
-super_admin_pass = "SuperSecure123"
+super_admin_pass = os.environ.get("SUPERADMIN_PASSWORD", "N/A - Provide Env Var")
 
 # We can try to hit a hypothetical root-only creation or use this as a reminder to do it in DB
 # For this lab, we'll assume the user might manually add or we can provide a small script to inject it.
