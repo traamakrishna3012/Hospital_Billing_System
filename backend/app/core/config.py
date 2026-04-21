@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     # ── Database ──────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/hospital_billing"
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def parse_database_url(cls, v: str) -> str:
+        if v and v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
     # ── JWT ───────────────────────────────────────────────────
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
