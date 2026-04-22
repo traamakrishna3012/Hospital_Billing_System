@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request, Body
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,7 +50,13 @@ def _slugify(name: str) -> str:
     status_code=status.HTTP_201_CREATED,
     summary="Register a new clinic",
 )
-async def register(data: RegisterRequest, db: DBSession, background_tasks: BackgroundTasks):
+@limiter.limit("5/minute")
+async def register(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    data: RegisterRequest = Body(...),
+    db: AsyncSession = Depends(get_async_session)
+):
     """
     Register a new clinic/hospital. Creates a tenant and an admin user.
     Returns JWT tokens for immediate authentication.
@@ -126,7 +132,12 @@ async def register(data: RegisterRequest, db: DBSession, background_tasks: Backg
 
 
 @router.post("/login", response_model=TokenResponse, summary="User login")
-async def login(data: LoginRequest, db: DBSession):
+@limiter.limit("5/minute")
+async def login(
+    request: Request,
+    data: LoginRequest = Body(...), 
+    db: AsyncSession = Depends(get_async_session)
+):
     """Authenticate with email and password. Returns JWT tokens."""
     result = await db.execute(
         select(User).where(User.email == data.email, User.is_active == True)  # noqa: E712

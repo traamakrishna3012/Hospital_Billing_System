@@ -50,6 +50,17 @@ async def bulk_upload_tests(
     current_user: CurrentUser,
     file: UploadFile = File(...)
 ):
+    allowed_mime_types = [
+        "text/csv",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ]
+    if file.content_type not in allowed_mime_types:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Unsupported file type: {file.content_type}. Please upload CSV or Excel files."
+        )
+
     content = await file.read()
     try:
         df = _parse_file(content, file.filename)

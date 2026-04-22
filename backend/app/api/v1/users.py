@@ -78,6 +78,12 @@ async def create_user(
             detail="A user with this email already exists in your clinic",
         )
 
+    if data.role == "superadmin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot assign superadmin role to clinic staff",
+        )
+
     user = User(
         tenant_id=tenant_id,
         email=data.email,
@@ -111,6 +117,12 @@ async def update_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if getattr(data, "role", None) == "superadmin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot assign superadmin role to clinic staff",
+        )
 
     # Prevent deactivating the last admin
     if data.is_active is False and user.role == "admin":
