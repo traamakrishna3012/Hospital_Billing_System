@@ -22,7 +22,14 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${data.user.full_name}!`);
       navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Login failed');
+      let errMsg = 'Login failed';
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        errMsg = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        errMsg = detail[0].msg || 'Validation error';
+      }
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }
