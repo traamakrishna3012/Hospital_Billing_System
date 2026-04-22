@@ -1,8 +1,13 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
+let base = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? '/api/v1' : 'https://hospital-billing-system-pccq.onrender.com/api/v1');
+if (base.startsWith('http') && !base.endsWith('/api/v1')) {
+  base = base.replace(/\/+$/, '') + '/api/v1';
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? '/api/v1' : 'https://hospital-billing-system-pccq.onrender.com/api/v1'),
+  baseURL: base,
   headers: { 'Content-Type': 'application/json' },
 });
 
