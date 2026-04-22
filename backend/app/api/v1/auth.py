@@ -54,7 +54,7 @@ def _slugify(name: str) -> str:
 async def register(
     request: Request,
     background_tasks: BackgroundTasks,
-    data: RegisterRequest = Body(...),
+    data: RegisterRequest,
     db: AsyncSession = Depends(get_async_session)
 ):
     """
@@ -135,7 +135,7 @@ async def register(
 @limiter.limit("5/minute")
 async def login(
     request: Request,
-    data: LoginRequest = Body(...), 
+    data: LoginRequest, 
     db: AsyncSession = Depends(get_async_session)
 ):
     """Authenticate with email and password. Returns JWT tokens."""
