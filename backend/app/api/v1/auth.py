@@ -2,7 +2,6 @@
 Authentication routes — register, login, refresh, profile.
 """
 
-from __future__ import annotations
 
 import re
 from uuid import UUID
@@ -54,7 +53,7 @@ def _slugify(name: str) -> str:
 async def register(
     request: Request,
     background_tasks: BackgroundTasks,
-    data: RegisterRequest,
+    data: RegisterRequest = Body(...),
     db: AsyncSession = Depends(get_async_session)
 ):
     """
@@ -135,7 +134,7 @@ async def register(
 @limiter.limit("5/minute")
 async def login(
     request: Request,
-    data: LoginRequest, 
+    data: LoginRequest = Body(...), 
     db: AsyncSession = Depends(get_async_session)
 ):
     """Authenticate with email and password. Returns JWT tokens."""
