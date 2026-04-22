@@ -50,8 +50,7 @@ def _slugify(name: str) -> str:
     status_code=status.HTTP_201_CREATED,
     summary="Register a new clinic",
 )
-@limiter.limit("5/minute")
-async def register(request: Request, data: RegisterRequest, db: DBSession, background_tasks: BackgroundTasks):
+async def register(data: RegisterRequest, db: DBSession, background_tasks: BackgroundTasks):
     """
     Register a new clinic/hospital. Creates a tenant and an admin user.
     Returns JWT tokens for immediate authentication.
@@ -127,8 +126,7 @@ async def register(request: Request, data: RegisterRequest, db: DBSession, backg
 
 
 @router.post("/login", response_model=TokenResponse, summary="User login")
-@limiter.limit("5/minute")
-async def login(request: Request, data: LoginRequest, db: DBSession):
+async def login(data: LoginRequest, db: DBSession):
     """Authenticate with email and password. Returns JWT tokens."""
     result = await db.execute(
         select(User).where(User.email == data.email, User.is_active == True)  # noqa: E712
