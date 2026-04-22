@@ -44,6 +44,27 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    @field_validator("JWT_SECRET_KEY", mode="after")
+    @classmethod
+    def validate_jwt_secret(cls, v: str) -> str:
+        _WEAK_DEFAULTS = {
+            "change-this-in-production",
+            "secret",
+            "supersecret",
+            "your-secret-key",
+            "jwt-secret",
+            "changeme",
+        }
+        if len(v) < 64:
+            raise ValueError(
+                "JWT_SECRET_KEY must be at least 64 characters and must not use default values."
+            )
+        if v.lower().strip() in _WEAK_DEFAULTS:
+            raise ValueError(
+                "JWT_SECRET_KEY must be at least 64 characters and must not use default values."
+            )
+        return v
+
     # ── CORS ──────────────────────────────────────────────────
     CORS_ORIGINS: str | List[str] = [
         "http://localhost:5173", 
@@ -88,7 +109,7 @@ class Settings(BaseSettings):
 
     @property
     def is_production(self) -> bool:
-        return self.APP_ENV == "production"
+        return self.APP_ENV != "development"
 
     @property
     def upload_path(self) -> Path:

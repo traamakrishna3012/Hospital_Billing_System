@@ -132,68 +132,72 @@ async def lifespan(app: FastAPI):
 # ── FastAPI App ───────────────────────────────────────────────
 
 app = FastAPI(
-    title="Hospital Billing System API",
+    title="Hospital Billing API",
     description="Multi-tenant hospital/clinic billing system with patient, doctor, test, and billing management.",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url=None if settings.is_production else "/docs",
-    redoc_url=None if settings.is_production else "/redoc",
-    openapi_url=None if settings.is_production else "/openapi.json",
+    docs_url="/docs" if not settings.is_production else None,
+    redoc_url="/redoc" if not settings.is_production else None,
+    openapi_url="/openapi.json" if not settings.is_production else None,
 )
+logger.info(f"Docs enabled: {not settings.is_production}")
 
 # ── Middleware ────────────────────────────────────────────────
 
-from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.core.limiter import limiter
+import traceback
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# V-12: CORS — explicit allowlist only, no wildcards
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    """Add standard security headers to all responses."""
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    response.headers["Server"] = "Hidden" # Obscure server details
-    return response
+
+# V-09: Security headers — class-based middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+        )
+        response.headers["Server"] = "Hidden"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # ── Global Exception Handlers ────────────────────────────────
 
+# V-10: Never leak stack traces to clients in production
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch unhandled exceptions and return structured error response."""
-    logger.error(f"Unhandled error: {exc}", exc_info=True)
-    
+    logger.error(f"Unhandled exception: {traceback.format_exc()}")
+
     if settings.is_production:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "detail": "An internal server error occurred",
-                "type": "InternalServerError",
-            },
+            content={"detail": "An unexpected error occurred. Please contact support."},
         )
-    
+
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "detail": f"An internal server error occurred: {str(exc)}",
-            "type": str(type(exc).__name__),
-        },
+        content={"detail": str(exc)},
     )
 
 
