@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,11 +27,13 @@ DBSession = Annotated[AsyncSession, Depends(get_async_session)]
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer(auto_error=False))],
     db: DBSession,
 ) -> User:
     """
     Validate the JWT token and return the authenticated user with approval status.
+    Checks HttpOnly cookie first, then falls back to Authorization Bearer header.
     Raises 401 if token is invalid or user not found.
     """
     credentials_exception = HTTPException(
@@ -40,7 +42,14 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    payload = decode_token(credentials.credentials)
+    # Try HttpOnly cookie first, then Bearer header
+    token = request.cookies.get("access_token")
+    if not token and credentials:
+        token = credentials.credentials
+    if not token:
+        raise credentials_exception
+
+    payload = decode_token(token)
     if payload is None or payload.get("type") != "access":
         raise credentials_exception
 

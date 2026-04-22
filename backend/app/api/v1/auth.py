@@ -7,6 +7,7 @@ import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request, Body
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -130,14 +131,14 @@ async def register(
     )
 
 
-@router.post("/login", response_model=TokenResponse, summary="User login")
+@router.post("/login", summary="User login")
 @limiter.limit("5/minute")
 async def login(
     request: Request,
     data: LoginRequest = Body(...), 
     db: AsyncSession = Depends(get_async_session)
 ):
-    """Authenticate with email and password. Returns JWT tokens."""
+    """Authenticate with email and password. Returns JWT tokens as HttpOnly cookies and in JSON body."""
     result = await db.execute(
         select(User).where(User.email == data.email, User.is_active == True)  # noqa: E712
     )
@@ -167,11 +168,38 @@ async def login(
     user_data = UserResponse.model_validate(user).model_dump()
     user_data["tenant_modules"] = tenant_modules
 
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        user=user_data,
+    from app.core.config import get_settings
+    _settings = get_settings()
+
+    response = JSONResponse(content={
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": user_data,
+    })
+
+    # Set HttpOnly cookies — immune to XSS token theft
+    _is_secure = _settings.APP_ENV != "development"
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=_is_secure,
+        samesite="lax",
+        max_age=_settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
     )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=_is_secure,
+        samesite="lax",
+        max_age=_settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path="/api/v1/auth",  # Only sent to auth endpoints
+    )
+
+    return response
 
 @router.post("/refresh", response_model=TokenResponse, summary="Refresh access token")
 async def refresh_token(data: RefreshRequest, db: DBSession):
@@ -249,26 +277,40 @@ bearer_scheme = HTTPBearer(auto_error=False)
 async def logout(
     request: Request,
     db: DBSession,
-    data: RefreshRequest,
+    data: RefreshRequest = Body(None),
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ):
     """
     Invalidates the current refresh token and the provided access token by adding their JTIs to the blocklist.
+    Also clears HttpOnly auth cookies.
     """
     import datetime
 
+    # Get refresh token from body OR cookie
+    rt = None
+    if data and data.refresh_token:
+        rt = data.refresh_token
+    elif request.cookies.get("refresh_token"):
+        rt = request.cookies.get("refresh_token")
+
     # 1. Blocklist Refresh Token
-    if data.refresh_token:
-        refresh_payload = decode_token(data.refresh_token)
+    if rt:
+        refresh_payload = decode_token(rt)
         if refresh_payload and refresh_payload.get("jti"):
             exp_timestamp = refresh_payload.get("exp")
             if exp_timestamp:
                 expires_at = datetime.datetime.fromtimestamp(exp_timestamp, tz=datetime.timezone.utc)
                 db.add(TokenBlocklist(jti=refresh_payload["jti"], expires_at=expires_at))
 
-    # 2. Blocklist Access Token
+    # 2. Blocklist Access Token (from header or cookie)
+    access_tok = None
     if credentials and credentials.credentials:
-        access_payload = decode_token(credentials.credentials)
+        access_tok = credentials.credentials
+    elif request.cookies.get("access_token"):
+        access_tok = request.cookies.get("access_token")
+
+    if access_tok:
+        access_payload = decode_token(access_tok)
         if access_payload and access_payload.get("jti"):
             exp_timestamp = access_payload.get("exp")
             if exp_timestamp:
@@ -280,4 +322,9 @@ async def logout(
                     db.add(TokenBlocklist(jti=access_payload["jti"], expires_at=expires_at))
 
     await db.commit()
-    return {"message": "Successfully logged out"}
+
+    # Clear HttpOnly cookies
+    response = JSONResponse(content={"message": "Successfully logged out"})
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/api/v1/auth")
+    return response

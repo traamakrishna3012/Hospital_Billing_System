@@ -9,6 +9,7 @@ if (base.startsWith('http') && !base.endsWith('/api/v1')) {
 const api = axios.create({
   baseURL: base,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
 // Attach JWT token to every request
