@@ -33,18 +33,9 @@ class Settings(BaseSettings):
         if v:
             if v.startswith("postgresql://"):
                 v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
-            if "localhost" not in v:
-                params = []
-                if "ssl" not in v.lower():
-                    params.append("ssl=require")
-                if "prepared_statement_cache_size" not in v:
-                    params.append("prepared_statement_cache_size=0")
-                if "statement_cache_size" not in v:
-                    params.append("statement_cache_size=0")
-                
-                if params:
-                    separator = "&" if "?" in v else "?"
-                    v += f"{separator}{'&'.join(params)}"
+            if "localhost" not in v and "ssl" not in v.lower():
+                separator = "&" if "?" in v else "?"
+                v += f"{separator}ssl=require"
         return v
 
     # ── JWT ───────────────────────────────────────────────────
