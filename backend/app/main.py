@@ -237,9 +237,8 @@ async def not_found_handler(request: Request, exc):
 
 # ── Static Files (uploads) ───────────────────────────────────
 
-import os
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+# os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+# app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
 # ── Register API Routers ─────────────────────────────────────

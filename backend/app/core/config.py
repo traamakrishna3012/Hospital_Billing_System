@@ -71,7 +71,8 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "https://hospital-billing-system-rho.vercel.app",
         "https://hospital-billing-system-lovat.vercel.app",
-        "https://hospital-billing-system-git-main-traamakrishna3012.vercel.app"
+        "https://hospital-billing-system-git-main-traamakrishna3012.vercel.app",
+        "https://hospital-billing-system-1.onrender.com"
     ]
 
     @field_validator("CORS_ORIGINS", mode="before")
