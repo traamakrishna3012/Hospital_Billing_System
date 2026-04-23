@@ -281,37 +281,44 @@ from fastapi.responses import FileResponse
 import os
 
 # Path to the static files directory (populated during Docker build)
-STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static")
+# __file__ is backend/app/main.py -> dirname(dirname(__file__)) is backend/
+STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
 
-@app.get("/{full_path:path}", include_in_schema=False)
+@app.api_route("/{full_path:path}", methods=["GET", "POST"], include_in_schema=False)
 async def serve_spa(request: Request, full_path: str):
     """
-    Serve the React frontend. 
-    1. Check if the path exists as a physical file in STATIC_DIR.
-    2. If not, and it's not an API call, serve index.html (SPA routing).
+    Serve the React frontend or return 404 for API.
     """
-    # Prevent infinite loop or recursion for API routes that genuinely don't exist
+    # 1. API routes must always return JSON 404 if not matched by earlier routers
     if full_path.startswith("api/"):
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": f"API route '{full_path}' not found"}
+            content={"detail": f"API endpoint '/{full_path}' not found"}
         )
 
-    # Resolve the physical file path
+    # 2. Only handle GET for static files/SPA
+    if request.method != "GET":
+        return JSONResponse(
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            content={"detail": f"Method {request.method} not allowed for static content"}
+        )
+
+    # 3. Resolve the physical file path
     file_path = os.path.join(STATIC_DIR, full_path)
     
-    # If it's a file (like .js, .css, .png), serve it
+    # If it's a physical file (like .js, .css, .png), serve it
     if os.path.isfile(file_path):
         return FileResponse(file_path)
     
-    # Otherwise, serve index.html for SPA client-side routing
+    # 4. Otherwise, serve index.html for SPA client-side routing
     index_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.isfile(index_path):
         return FileResponse(index_path)
     
-    # Fallback if index.html is missing
+    # 5. Ultimate fallback if index.html is missing
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
-        content={"detail": "Frontend build not found. Please run build process."}
+        content={"detail": "Frontend build not found. Check Docker build logs."}
     )
+
 

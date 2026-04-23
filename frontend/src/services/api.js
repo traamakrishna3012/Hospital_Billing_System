@@ -2,8 +2,10 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
 const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
-  if (window.location.hostname === 'localhost') return 'http://localhost:8000/api/v1';
+  // Always use the same origin in production to avoid CORS and stale URL issues
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:8000/api/v1';
+  }
   return `${window.location.origin}/api/v1`;
 };
 
