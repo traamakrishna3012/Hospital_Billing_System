@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 from datetime import datetime
 from io import BytesIO
 from typing import Optional
@@ -61,6 +62,14 @@ def _s(name: str, **kw) -> ParagraphStyle:
     """Create a named ParagraphStyle inheriting from Normal."""
     base = getSampleStyleSheet()["Normal"]
     return ParagraphStyle(name, parent=base, **kw)
+
+
+# ── XML sanitiser — prevents ReportLab Paragraph injection ──────────────
+def _strip_xml(text) -> str:
+    """Remove all XML/HTML tags from user-supplied text before PDF rendering."""
+    if not text:
+        return "\u2014"
+    return re.sub(r'<[^>]+>', '', str(text)).strip() or "\u2014"
 
 
 # ── Rupee helper ─────────────────────────────────────────────────────────
@@ -177,10 +186,10 @@ def generate_receipt_pdf(
     logo_img = _load_logo(tenant_data.get("logo_url"), LOGO_W, LOGO_H)
     logo_cell = logo_img if logo_img else _logo_placeholder(LOGO_W, LOGO_H)
 
-    inst_name  = tenant_data.get("name")    or "Medical Institution Name"
-    inst_addr  = tenant_data.get("address") or "Medical Institution Address"
-    inst_email = tenant_data.get("email")   or "Medical Institution Email"
-    inst_phone = tenant_data.get("phone")   or "Medical Institution Contact No."
+    inst_name  = _strip_xml(tenant_data.get("name"))    if tenant_data.get("name")    else "Medical Institution Name"
+    inst_addr  = _strip_xml(tenant_data.get("address")) if tenant_data.get("address") else "Medical Institution Address"
+    inst_email = _strip_xml(tenant_data.get("email"))   if tenant_data.get("email")   else "Medical Institution Email"
+    inst_phone = _strip_xml(tenant_data.get("phone"))   if tenant_data.get("phone")   else "Medical Institution Contact No."
 
     sv_grey = _s("_IG", fontSize=8, textColor=TEXT_GREY, leading=11)
 
@@ -232,10 +241,10 @@ def generate_receipt_pdf(
     # ── 2. PATIENT / PRACTITIONER ────────────────────────────────────────
     sv = _s("_SV", fontSize=8, textColor=TEXT_MID, leading=12)
 
-    p_name  = patient_data.get("name")    or "Customer Name"
-    p_addr  = patient_data.get("address") or "Customer Address"
-    p_email = patient_data.get("email")   or "Customer Email"
-    p_phone = patient_data.get("phone")   or "Customer Contact No."
+    p_name  = _strip_xml(patient_data.get("name"))    if patient_data.get("name")    else "Customer Name"
+    p_addr  = _strip_xml(patient_data.get("address")) if patient_data.get("address") else "Customer Address"
+    p_email = _strip_xml(patient_data.get("email"))   if patient_data.get("email")   else "Customer Email"
+    p_phone = _strip_xml(patient_data.get("phone"))   if patient_data.get("phone")   else "Customer Contact No."
 
     patient_blk = _section_hdr("Patient Information") + [
         Paragraph(p_name,  sv),
@@ -244,9 +253,9 @@ def generate_receipt_pdf(
         Paragraph(p_phone, sv),
     ]
 
-    d_name  = f"Dr. {doctor_data['name']}"              if doctor_data else "Practitioner Name"
-    d_lic   = doctor_data.get("license_number") or "—"  if doctor_data else "Practitioner License"
-    d_title = doctor_data.get("specialization") or "—"  if doctor_data else "Practitioner Title"
+    d_name  = f"Dr. {_strip_xml(doctor_data['name'])}"              if doctor_data else "Practitioner Name"
+    d_lic   = _strip_xml(doctor_data.get("license_number")) or "\u2014"  if doctor_data else "Practitioner License"
+    d_title = _strip_xml(doctor_data.get("specialization")) or "\u2014"  if doctor_data else "Practitioner Title"
 
     prac_blk = _section_hdr("Practitioner Information") + [
         Paragraph(d_name,  sv),
@@ -283,10 +292,10 @@ def generate_receipt_pdf(
         if i < len(items_data):
             it   = items_data[i]
             # Use stored code directly; fall back to CST-### if none
-            code = it.get("code") or f"CST-{i + 1:03d}"
+            code = _strip_xml(it.get("code")) if it.get("code") else f"CST-{i + 1:03d}"
             svc_data.append([
                 Paragraph(code,                                          tbc),
-                Paragraph(it.get("description", ""),                    tbl_l),
+                Paragraph(_strip_xml(it.get("description", "")),        tbl_l),
                 Paragraph(_rs(float(it.get("unit_price", 0))),           tbc),
                 Paragraph(_rs(float(it.get("total", 0))),                tbc),
             ])
@@ -328,7 +337,7 @@ def generate_receipt_pdf(
     nsv = _s("_NSV", fontSize=8, textColor=TEXT_MID, leading=13)
     nbv = _s("_NBV", fontSize=8, fontName="Helvetica-Bold", textColor=TEXT_DARK)
 
-    notes_txt = bill_data.get("notes") or "—"
+    notes_txt = _strip_xml(bill_data.get("notes"))
 
     notes_blk = [
         Paragraph("Notes", _s("_NL", fontSize=9, fontName="Helvetica-Bold",

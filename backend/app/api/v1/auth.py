@@ -238,6 +238,14 @@ async def refresh_token(data: RefreshRequest, db: DBSession):
             detail="User not found",
         )
 
+    # Blocklist the consumed refresh token so it cannot be reused (token rotation)
+    import datetime
+    exp_timestamp = payload.get("exp")
+    if exp_timestamp:
+        expires_at = datetime.datetime.fromtimestamp(exp_timestamp, tz=datetime.timezone.utc)
+        db.add(TokenBlocklist(jti=jti, expires_at=expires_at))
+        await db.flush()
+
     access_token = create_access_token(user.id, user.tenant_id, user.role)
     new_refresh_token = create_refresh_token(user.id, user.tenant_id)
 

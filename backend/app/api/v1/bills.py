@@ -5,10 +5,11 @@ Billing routes — create, list, detail, PDF download.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
-from fastapi.responses import Response
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 
@@ -380,3 +381,30 @@ async def email_bill_receipt(
     )
 
     return {"message": "Receipt email has been queued for delivery", "email": bill.patient.email}
+
+
+@router.get("/{bill_id}/file", summary="Serve bill PDF securely")
+async def serve_bill_pdf(
+    bill_id: UUID,
+    db: DBSession,
+    tenant_id: TenantID,
+    current_user: CurrentUser,
+):
+    """Serve a bill's PDF file through an authenticated endpoint (no public static mount)."""
+    result = await db.execute(
+        select(Bill).where(Bill.id == bill_id, Bill.tenant_id == tenant_id)
+    )
+    bill = result.scalar_one_or_none()
+    if not bill or not bill.pdf_url:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PDF not found")
+
+    # Path traversal protection
+    safe_path = Path(bill.pdf_url).resolve()
+    allowed_dir = Path(settings.UPLOAD_DIR).resolve()
+    if not str(safe_path).startswith(str(allowed_dir)):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if not safe_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PDF file not found on disk")
+
+    return FileResponse(safe_path, media_type="application/pdf")

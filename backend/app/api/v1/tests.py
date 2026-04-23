@@ -112,7 +112,7 @@ async def bulk_upload_tests(
 
     # ── V-05: CSV injection sanitization ─────────────────────
     str_cols = df.select_dtypes(include=["object"]).columns
-    df[str_cols] = df[str_cols].applymap(_sanitize_cell)
+    df[str_cols] = df[str_cols].map(_sanitize_cell)
 
     # Standardize columns
     df.columns = [str(c).strip().lower() for c in df.columns]
@@ -127,6 +127,7 @@ async def bulk_upload_tests(
         )
 
     records_added = 0
+    records_skipped = 0
     categories_cache = {}
 
     # Fetch existing categories to avoid duplicates
@@ -135,6 +136,12 @@ async def bulk_upload_tests(
     )
     for cat in existing_cats.scalars():
         categories_cache[cat.name.lower()] = cat.id
+
+    # Pre-load existing test codes for this tenant to detect duplicates
+    existing_codes_result = await db.execute(
+        select(MedicalTest.code).where(MedicalTest.tenant_id == tenant_id)
+    )
+    existing_codes = {row[0] for row in existing_codes_result.all()}
 
     for _, row in df.iterrows():
         name = str(row.get("name", "")).strip()
@@ -175,7 +182,11 @@ async def bulk_upload_tests(
                 detail=f"Mandatory 'code' is missing for test: '{name}'. Please ensure every row has a unique test code.",
             )
 
-        # Upsert Test
+        # Skip duplicate test codes
+        if code in existing_codes:
+            records_skipped += 1
+            continue
+
         test = MedicalTest(
             tenant_id=tenant_id,
             name=name,
@@ -185,11 +196,12 @@ async def bulk_upload_tests(
             description="Imported in bulk",
         )
         db.add(test)
+        existing_codes.add(code)  # Track newly added codes within this batch
         records_added += 1
 
     await db.commit()
-    logger.info(f"Bulk upload complete for {safe_name}: {records_added} records imported.")
-    return {"message": f"Successfully imported {records_added} records."}
+    logger.info(f"Bulk upload complete for {safe_name}: {records_added} added, {records_skipped} skipped.")
+    return {"message": f"Import complete: {records_added} added, {records_skipped} skipped (duplicates)."}
 
 
 # ── Test Categories ───────────────────────────────────────────

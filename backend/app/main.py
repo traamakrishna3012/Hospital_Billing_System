@@ -124,8 +124,34 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to seed or migrate during startup: {e}")
 
+    # Background task: prune expired tokens from the blocklist every 6 hours
+    import asyncio
+    from datetime import datetime, timezone
+    from sqlalchemy import delete as sql_delete
+    from app.models.token_blocklist import TokenBlocklist
+    from app.core.database import async_session_factory
+
+    async def cleanup_expired_tokens():
+        """Remove expired tokens from blocklist every 6 hours."""
+        while True:
+            await asyncio.sleep(6 * 3600)
+            try:
+                async with async_session_factory() as db:
+                    result = await db.execute(
+                        sql_delete(TokenBlocklist).where(
+                            TokenBlocklist.expires_at < datetime.now(timezone.utc)
+                        )
+                    )
+                    await db.commit()
+                    logger.info(f"Token blocklist cleanup: {result.rowcount} expired entries removed")
+            except Exception as e:
+                logger.error(f"Token cleanup error: {e}")
+
+    cleanup_task = asyncio.create_task(cleanup_expired_tokens())
+
     yield
 
+    cleanup_task.cancel()
     logger.info("Shutting down...")
 
 
