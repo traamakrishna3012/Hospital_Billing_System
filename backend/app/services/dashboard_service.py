@@ -44,23 +44,23 @@ async def get_dashboard_stats(db: AsyncSession, tenant_id: UUID | None) -> Dashb
         doctor_stmt = select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant_id, Doctor.is_active == True)
 
     # Combine into one mega query result
-    # We execute them in parallel using gather or just run the aggregated Bill query which is the heavy one
     res_bills = await db.execute(bill_stmt)
-    row_bills = res_bills.one()
+    row_bills = res_bills.mappings().one()
     
     res_patients = await db.execute(patient_stmt)
     res_doctors = await db.execute(doctor_stmt)
 
     return DashboardStats(
-        total_revenue=float(row_bills.total_revenue),
-        today_revenue=float(row_bills.today_revenue),
-        month_revenue=float(row_bills.month_revenue),
-        total_bills=row_bills.total_bills,
-        today_bills=row_bills.today_bills,
-        month_bills=row_bills.month_bills,
+        total_revenue=float(row_bills["total_revenue"] or 0),
+        today_revenue=float(row_bills["today_revenue"] or 0),
+        month_revenue=float(row_bills["month_revenue"] or 0),
+        total_bills=row_bills["total_bills"] or 0,
+        today_bills=row_bills["today_bills"] or 0,
+        month_bills=row_bills["month_bills"] or 0,
         total_patients=res_patients.scalar() or 0,
         total_doctors=res_doctors.scalar() or 0,
     )
+
 
 
 
@@ -111,13 +111,17 @@ async def get_revenue_chart_data(
         stmt = stmt.where(Bill.tenant_id == tenant_id)
 
     result = await db.execute(stmt)
+    rows = result.mappings().all()
 
-
-    rows = result.all()
     return [
-        RevenueChartData(label=row.period, revenue=float(row.revenue), count=row.count)
+        RevenueChartData(
+            label=row["period"], 
+            revenue=float(row["revenue"] or 0), 
+            count=row["count"] or 0
+        )
         for row in rows
     ]
+
 
 
 async def get_recent_transactions(

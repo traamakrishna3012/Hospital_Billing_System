@@ -33,8 +33,13 @@ async def list_doctors(
     active_only: bool = Query(True),
 ):
     """List doctors with search, specialization filter, and pagination."""
-    query = select(Doctor).where(Doctor.tenant_id == tenant_id)
-    count_query = select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant_id)
+    query = select(Doctor)
+    count_query = select(func.count(Doctor.id))
+
+    if tenant_id:
+        query = query.where(Doctor.tenant_id == tenant_id)
+        count_query = count_query.where(Doctor.tenant_id == tenant_id)
+
 
     if active_only:
         query = query.where(Doctor.is_active == True)  # noqa: E712

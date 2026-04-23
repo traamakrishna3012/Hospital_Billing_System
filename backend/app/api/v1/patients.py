@@ -33,8 +33,13 @@ async def list_patients(
     gender: str = Query("", max_length=10),
 ):
     """List patients with search, filters, and pagination."""
-    query = select(Patient).where(Patient.tenant_id == tenant_id)
-    count_query = select(func.count(Patient.id)).where(Patient.tenant_id == tenant_id)
+    query = select(Patient)
+    count_query = select(func.count(Patient.id))
+
+    if tenant_id:
+        query = query.where(Patient.tenant_id == tenant_id)
+        count_query = count_query.where(Patient.tenant_id == tenant_id)
+
 
     # Search by name or phone
     if search:

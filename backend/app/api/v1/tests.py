@@ -312,12 +312,13 @@ async def list_tests(
     category_id: UUID = Query(None),
     active_only: bool = Query(True),
 ):
-    query = select(MedicalTest).options(selectinload(MedicalTest.category)).where(
-        MedicalTest.tenant_id == tenant_id
-    )
-    count_query = select(func.count(MedicalTest.id)).where(
-        MedicalTest.tenant_id == tenant_id
-    )
+    query = select(MedicalTest).options(selectinload(MedicalTest.category))
+    count_query = select(func.count(MedicalTest.id))
+
+    if tenant_id:
+        query = query.where(MedicalTest.tenant_id == tenant_id)
+        count_query = count_query.where(MedicalTest.tenant_id == tenant_id)
+
 
     if active_only:
         query = query.where(MedicalTest.is_active == True)  # noqa: E712
