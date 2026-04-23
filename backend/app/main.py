@@ -29,8 +29,13 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Hospital Billing System...")
 
     # Create tables (use Alembic in production)
-    await init_db()
-    logger.info("Database initialized")
+    try:
+        await init_db()
+        logger.info("Database initialized")
+    except Exception as e:
+        logger.error(f"Critical: Database initialization failed: {e}")
+        # We don't exit here because we want the app to start and serve a /health check
+        # that shows the error, helping the user diagnose the problem.
 
     # Ensure upload directories exist
     settings.upload_path  # triggers directory creation
@@ -241,6 +246,13 @@ async def not_found_handler(request: Request, exc):
 # app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
+# ── Health Check ──────────────────────────────────────────────
+# Always keep this at the top to ensure monitoring works even if other parts fail
+@app.get("/health", tags=["Health"])
+async def health_check():
+    return {"status": "healthy", "version": "1.0.1"}
+
+
 # ── Register API Routers ─────────────────────────────────────
 
 from app.api.v1.auth import router as auth_router
@@ -268,57 +280,44 @@ app.include_router(reports_router, prefix=API_PREFIX)
 app.include_router(superadmin_router, prefix=API_PREFIX)
 
 
-# ── Health Check ──────────────────────────────────────────────
-
-@app.get("/health", tags=["Health"])
-async def health_check():
-    return {"status": "healthy", "version": "1.0.0"}
-
-
 # ── SPA Frontend Serving ─────────────────────────────────────
-# This must be at the end, after all API routes
 from fastapi.responses import FileResponse
 import os
 
 # Path to the static files directory (populated during Docker build)
-# __file__ is backend/app/main.py -> dirname(dirname(__file__)) is backend/
-STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+# __file__ is /app/app/main.py -> dirname(dirname(__file__)) is /app
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-@app.api_route("/{full_path:path}", methods=["GET", "POST"], include_in_schema=False)
-async def serve_spa(request: Request, full_path: str):
-    """
-    Serve the React frontend or return 404 for API.
-    """
-    # 1. API routes must always return JSON 404 if not matched by earlier routers
+# Mount assets folder if it exists
+assets_path = os.path.join(STATIC_DIR, "assets")
+if os.path.exists(assets_path):
+    app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+
+@app.get("/", include_in_schema=False)
+async def serve_index():
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return JSONResponse({"detail": "Frontend not built"}, status_code=500)
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def catch_all(full_path: str):
+    # API 404s
     if full_path.startswith("api/"):
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": f"API endpoint '/{full_path}' not found"}
-        )
-
-    # 2. Only handle GET for static files/SPA
-    if request.method != "GET":
-        return JSONResponse(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            content={"detail": f"Method {request.method} not allowed for static content"}
-        )
-
-    # 3. Resolve the physical file path
-    file_path = os.path.join(STATIC_DIR, full_path)
+        return JSONResponse({"detail": f"API endpoint '/{full_path}' not found"}, status_code=404)
     
-    # If it's a physical file (like .js, .css, .png), serve it
+    # Physical files in static root (favicon, etc)
+    file_path = os.path.join(STATIC_DIR, full_path)
     if os.path.isfile(file_path):
         return FileResponse(file_path)
     
-    # 4. Otherwise, serve index.html for SPA client-side routing
+    # SPA routing - return index.html for everything else
     index_path = os.path.join(STATIC_DIR, "index.html")
-    if os.path.isfile(index_path):
+    if os.path.exists(index_path):
         return FileResponse(index_path)
     
-    # 5. Ultimate fallback if index.html is missing
-    return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content={"detail": "Frontend build not found. Check Docker build logs."}
-    )
+    return JSONResponse({"detail": "Not Found"}, status_code=404)
+
 
 

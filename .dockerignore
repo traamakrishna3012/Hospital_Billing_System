@@ -1,0 +1,17 @@
+# Ignore local build artifacts and environments
+node_modules
+dist
+venv
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+.git
+.github
+.vscode
+*.docx
+*.pdf
+backend/uploads/*
+!backend/uploads/.gitkeep
