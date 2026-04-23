@@ -1,10 +1,14 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-let base = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? '/api/v1' : 'https://hospital-billing-system-pccq.onrender.com/api/v1');
-if (base.startsWith('http') && !base.endsWith('/api/v1')) {
-  base = base.replace(/\/+$/, '') + '/api/v1';
-}
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
+  if (window.location.hostname === 'localhost') return 'http://localhost:8000/api/v1';
+  return `${window.location.origin}/api/v1`;
+};
+
+const base = getApiBaseUrl();
+
 
 const api = axios.create({
   baseURL: base,

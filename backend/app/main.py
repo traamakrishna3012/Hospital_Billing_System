@@ -275,10 +275,43 @@ async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
 
 
-@app.get("/", tags=["Health"])
-async def root():
-    return {
-        "message": "Hospital Billing System API",
-        "docs": "/docs",
-        "version": "1.0.0",
-    }
+# ── SPA Frontend Serving ─────────────────────────────────────
+# This must be at the end, after all API routes
+from fastapi.responses import FileResponse
+import os
+
+# Path to the static files directory (populated during Docker build)
+STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static")
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa(request: Request, full_path: str):
+    """
+    Serve the React frontend. 
+    1. Check if the path exists as a physical file in STATIC_DIR.
+    2. If not, and it's not an API call, serve index.html (SPA routing).
+    """
+    # Prevent infinite loop or recursion for API routes that genuinely don't exist
+    if full_path.startswith("api/"):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": f"API route '{full_path}' not found"}
+        )
+
+    # Resolve the physical file path
+    file_path = os.path.join(STATIC_DIR, full_path)
+    
+    # If it's a file (like .js, .css, .png), serve it
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+    
+    # Otherwise, serve index.html for SPA client-side routing
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    
+    # Fallback if index.html is missing
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": "Frontend build not found. Please run build process."}
+    )
+

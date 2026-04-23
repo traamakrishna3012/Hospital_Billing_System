@@ -3,7 +3,7 @@ services:
   - type: web
     name: hospital-api-staging
     env: docker
-    dockerContext: backend
+    dockerContext: .
     dockerfilePath: ./backend/Dockerfile
     branch: staging
     autoDeploy: true
@@ -23,7 +23,7 @@ services:
   - type: web
     name: hospital-api-main
     env: docker
-    dockerContext: backend
+    dockerContext: .
     dockerfilePath: ./backend/Dockerfile
     branch: main
     autoDeploy: true
