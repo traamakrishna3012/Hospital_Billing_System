@@ -9,6 +9,7 @@ Production-ready multi-tenant billing system with:
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status, HTTPException
@@ -121,7 +122,6 @@ async def lifespan(app: FastAPI):
                 select(User).where(User.email == "superadmin@hospitalbilling.com")
             )
             if not result.scalar_one_or_none():
-                import os
                 super_pw = os.getenv("SUPERADMIN_PASSWORD")
                 if super_pw:
                     db.add(User(
@@ -302,7 +302,6 @@ app.include_router(superadmin_router, prefix=API_PREFIX)
 # ── SPA Frontend Serving ─────────────────────────────────────
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import os
 
 # Path to the static files directory (populated during Docker build)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
