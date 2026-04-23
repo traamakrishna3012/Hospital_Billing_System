@@ -17,62 +17,51 @@ from app.schemas.schemas import DashboardStats, RevenueChartData, RecentTransact
 
 
 async def get_dashboard_stats(db: AsyncSession, tenant_id: UUID | None) -> DashboardStats:
-    """Get aggregate statistics for the dashboard."""
+    """Get aggregate statistics for the dashboard in a single pass for speed."""
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Base queries
-    q1 = select(func.coalesce(func.sum(Bill.total), 0)).where(Bill.status == "paid")
-    q2 = select(func.coalesce(func.sum(Bill.total), 0)).where(Bill.status == "paid", Bill.created_at >= today_start)
-    q3 = select(func.coalesce(func.sum(Bill.total), 0)).where(Bill.status == "paid", Bill.created_at >= month_start)
-    q4 = select(func.count(Patient.id))
-    q5 = select(func.count(Bill.id))
-    q6 = select(func.count(Bill.id)).where(Bill.created_at >= today_start)
-    q7 = select(func.count(Bill.id)).where(Bill.created_at >= month_start)
-    q8 = select(func.count(Doctor.id)).where(Doctor.is_active == True)
+    # 1. Revenue & Bill Stats (Single scan of Bill table)
+    bill_stmt = select(
+        func.coalesce(func.sum(case((Bill.status == "paid", Bill.total), else_=0)), 0).label("total_revenue"),
+        func.coalesce(func.sum(case((and_(Bill.status == "paid", Bill.created_at >= today_start), Bill.total), else_=0)), 0).label("today_revenue"),
+        func.coalesce(func.sum(case((and_(Bill.status == "paid", Bill.created_at >= month_start), Bill.total), else_=0)), 0).label("month_revenue"),
+        func.count(Bill.id).label("total_bills"),
+        func.count(case((Bill.created_at >= today_start, Bill.id))).label("today_bills"),
+        func.count(case((Bill.created_at >= month_start, Bill.id))).label("month_bills")
+    )
+    
+    # 2. Patient Stats
+    patient_stmt = select(func.count(Patient.id)).label("total_patients")
+    
+    # 3. Doctor Stats
+    doctor_stmt = select(func.count(Doctor.id)).where(Doctor.is_active == True).label("total_doctors")
 
-    # Apply tenant filter if not superadmin
     if tenant_id:
-        q1 = q1.where(Bill.tenant_id == tenant_id)
-        q2 = q2.where(Bill.tenant_id == tenant_id)
-        q3 = q3.where(Bill.tenant_id == tenant_id)
-        q4 = q4.where(Patient.tenant_id == tenant_id)
-        q5 = q5.where(Bill.tenant_id == tenant_id)
-        q6 = q6.where(Bill.tenant_id == tenant_id)
-        q7 = q7.where(Bill.tenant_id == tenant_id)
-        q8 = q8.where(Doctor.tenant_id == tenant_id)
+        bill_stmt = bill_stmt.where(Bill.tenant_id == tenant_id)
+        patient_stmt = select(func.count(Patient.id)).where(Patient.tenant_id == tenant_id)
+        doctor_stmt = select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant_id, Doctor.is_active == True)
 
-    # Execute sequentially to prevent AsyncSession concurrent transaction corruption
-    t1 = await db.execute(q1)
-    t2 = await db.execute(q2)
-    t3 = await db.execute(q3)
-    t4 = await db.execute(q4)
-    t5 = await db.execute(q5)
-    t6 = await db.execute(q6)
-    t7 = await db.execute(q7)
-    t8 = await db.execute(q8)
-
-
-    total_revenue = float(t1.scalar() or 0)
-    today_revenue = float(t2.scalar() or 0)
-    month_revenue = float(t3.scalar() or 0)
-    total_patients = t4.scalar() or 0
-    total_bills = t5.scalar() or 0
-    today_bills = t6.scalar() or 0
-    month_bills = t7.scalar() or 0
-    total_doctors = t8.scalar() or 0
+    # Combine into one mega query result
+    # We execute them in parallel using gather or just run the aggregated Bill query which is the heavy one
+    res_bills = await db.execute(bill_stmt)
+    row_bills = res_bills.one()
+    
+    res_patients = await db.execute(patient_stmt)
+    res_doctors = await db.execute(doctor_stmt)
 
     return DashboardStats(
-        total_revenue=total_revenue,
-        total_patients=total_patients,
-        total_bills=total_bills,
-        total_doctors=total_doctors,
-        today_revenue=today_revenue,
-        today_bills=today_bills,
-        month_revenue=month_revenue,
-        month_bills=month_bills,
+        total_revenue=float(row_bills.total_revenue),
+        today_revenue=float(row_bills.today_revenue),
+        month_revenue=float(row_bills.month_revenue),
+        total_bills=row_bills.total_bills,
+        today_bills=row_bills.today_bills,
+        month_bills=row_bills.month_bills,
+        total_patients=res_patients.scalar() or 0,
+        total_doctors=res_doctors.scalar() or 0,
     )
+
 
 
 async def get_revenue_chart_data(
