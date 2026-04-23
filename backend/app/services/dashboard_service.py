@@ -16,21 +16,43 @@ from app.models.doctor import Doctor
 from app.schemas.schemas import DashboardStats, RevenueChartData, RecentTransaction
 
 
-async def get_dashboard_stats(db: AsyncSession, tenant_id: UUID) -> DashboardStats:
+async def get_dashboard_stats(db: AsyncSession, tenant_id: UUID | None) -> DashboardStats:
     """Get aggregate statistics for the dashboard."""
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Execute sequentially to prevent AsyncSession concurrent transaction corruption issue in asyncpg
-    t1 = await db.execute(select(func.coalesce(func.sum(Bill.total), 0)).where(Bill.tenant_id == tenant_id, Bill.status == "paid"))
-    t2 = await db.execute(select(func.coalesce(func.sum(Bill.total), 0)).where(Bill.tenant_id == tenant_id, Bill.status == "paid", Bill.created_at >= today_start))
-    t3 = await db.execute(select(func.coalesce(func.sum(Bill.total), 0)).where(Bill.tenant_id == tenant_id, Bill.status == "paid", Bill.created_at >= month_start))
-    t4 = await db.execute(select(func.count(Patient.id)).where(Patient.tenant_id == tenant_id))
-    t5 = await db.execute(select(func.count(Bill.id)).where(Bill.tenant_id == tenant_id))
-    t6 = await db.execute(select(func.count(Bill.id)).where(Bill.tenant_id == tenant_id, Bill.created_at >= today_start))
-    t7 = await db.execute(select(func.count(Bill.id)).where(Bill.tenant_id == tenant_id, Bill.created_at >= month_start))
-    t8 = await db.execute(select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant_id, Doctor.is_active == True))
+    # Base queries
+    q1 = select(func.coalesce(func.sum(Bill.total), 0)).where(Bill.status == "paid")
+    q2 = select(func.coalesce(func.sum(Bill.total), 0)).where(Bill.status == "paid", Bill.created_at >= today_start)
+    q3 = select(func.coalesce(func.sum(Bill.total), 0)).where(Bill.status == "paid", Bill.created_at >= month_start)
+    q4 = select(func.count(Patient.id))
+    q5 = select(func.count(Bill.id))
+    q6 = select(func.count(Bill.id)).where(Bill.created_at >= today_start)
+    q7 = select(func.count(Bill.id)).where(Bill.created_at >= month_start)
+    q8 = select(func.count(Doctor.id)).where(Doctor.is_active == True)
+
+    # Apply tenant filter if not superadmin
+    if tenant_id:
+        q1 = q1.where(Bill.tenant_id == tenant_id)
+        q2 = q2.where(Bill.tenant_id == tenant_id)
+        q3 = q3.where(Bill.tenant_id == tenant_id)
+        q4 = q4.where(Patient.tenant_id == tenant_id)
+        q5 = q5.where(Bill.tenant_id == tenant_id)
+        q6 = q6.where(Bill.tenant_id == tenant_id)
+        q7 = q7.where(Bill.tenant_id == tenant_id)
+        q8 = q8.where(Doctor.tenant_id == tenant_id)
+
+    # Execute sequentially to prevent AsyncSession concurrent transaction corruption
+    t1 = await db.execute(q1)
+    t2 = await db.execute(q2)
+    t3 = await db.execute(q3)
+    t4 = await db.execute(q4)
+    t5 = await db.execute(q5)
+    t6 = await db.execute(q6)
+    t7 = await db.execute(q7)
+    t8 = await db.execute(q8)
+
 
     total_revenue = float(t1.scalar() or 0)
     today_revenue = float(t2.scalar() or 0)
@@ -55,61 +77,52 @@ async def get_dashboard_stats(db: AsyncSession, tenant_id: UUID) -> DashboardSta
 
 async def get_revenue_chart_data(
     db: AsyncSession,
-    tenant_id: UUID,
+    tenant_id: UUID | None,
     period: str = "daily",  # daily | weekly | monthly
     days: int = 30,
 ) -> list[RevenueChartData]:
     """Get time-series revenue data for charts."""
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     start_date = now - timedelta(days=days)
-
     if period == "monthly":
-        # Group by month
-        result = await db.execute(
+        stmt = (
             select(
                 func.to_char(Bill.created_at, "YYYY-MM").label("period"),
                 func.coalesce(func.sum(Bill.total), 0).label("revenue"),
                 func.count(Bill.id).label("count"),
             )
-            .where(
-                Bill.tenant_id == tenant_id,
-                Bill.status == "paid",
-                Bill.created_at >= start_date,
-            )
+            .where(Bill.status == "paid", Bill.created_at >= start_date)
             .group_by(func.to_char(Bill.created_at, "YYYY-MM"))
             .order_by(func.to_char(Bill.created_at, "YYYY-MM"))
         )
     elif period == "weekly":
-        result = await db.execute(
+        stmt = (
             select(
                 func.to_char(Bill.created_at, "IYYY-IW").label("period"),
                 func.coalesce(func.sum(Bill.total), 0).label("revenue"),
                 func.count(Bill.id).label("count"),
             )
-            .where(
-                Bill.tenant_id == tenant_id,
-                Bill.status == "paid",
-                Bill.created_at >= start_date,
-            )
+            .where(Bill.status == "paid", Bill.created_at >= start_date)
             .group_by(func.to_char(Bill.created_at, "IYYY-IW"))
             .order_by(func.to_char(Bill.created_at, "IYYY-IW"))
         )
     else:
-        # Daily
-        result = await db.execute(
+        stmt = (
             select(
                 func.to_char(Bill.created_at, "YYYY-MM-DD").label("period"),
                 func.coalesce(func.sum(Bill.total), 0).label("revenue"),
                 func.count(Bill.id).label("count"),
             )
-            .where(
-                Bill.tenant_id == tenant_id,
-                Bill.status == "paid",
-                Bill.created_at >= start_date,
-            )
+            .where(Bill.status == "paid", Bill.created_at >= start_date)
             .group_by(func.to_char(Bill.created_at, "YYYY-MM-DD"))
             .order_by(func.to_char(Bill.created_at, "YYYY-MM-DD"))
         )
+
+    if tenant_id:
+        stmt = stmt.where(Bill.tenant_id == tenant_id)
+
+    result = await db.execute(stmt)
+
 
     rows = result.all()
     return [
@@ -120,18 +133,21 @@ async def get_revenue_chart_data(
 
 async def get_recent_transactions(
     db: AsyncSession,
-    tenant_id: UUID,
+    tenant_id: UUID | None,
     limit: int = 10,
 ) -> list[RecentTransaction]:
     """Get recent bills for the dashboard."""
     from sqlalchemy.orm import selectinload
-    result = await db.execute(
+    stmt = (
         select(Bill)
         .options(selectinload(Bill.patient))
-        .where(Bill.tenant_id == tenant_id)
         .order_by(Bill.created_at.desc())
         .limit(limit)
     )
+    if tenant_id:
+        stmt = stmt.where(Bill.tenant_id == tenant_id)
+    
+    result = await db.execute(stmt)
     bills = result.scalars().all()
 
     transactions = []
