@@ -9,7 +9,8 @@ from typing import Any
 from uuid import UUID
 import uuid
 
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 from passlib.context import CryptContext
 
 from app.core.config import get_settings
@@ -90,5 +91,5 @@ def decode_token(token: str) -> dict[str, Any] | None:
             algorithms=[settings.JWT_ALGORITHM],
         )
         return payload
-    except JWTError:
+    except PyJWTError:
         return None

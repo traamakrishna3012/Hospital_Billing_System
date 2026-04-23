@@ -1,7 +1,7 @@
 # FastAPI & Server
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
-python-multipart==0.0.20
+python-multipart==0.0.26
 
 # Database
 sqlalchemy[asyncio]==2.0.36
@@ -9,7 +9,7 @@ asyncpg==0.30.0
 alembic==1.14.1
 
 # Authentication & Security
-python-jose[cryptography]==3.3.0
+PyJWT[crypto]==2.10.1
 passlib[bcrypt]==1.7.4
 bcrypt==4.2.1
 
@@ -19,11 +19,11 @@ pydantic-settings==2.7.1
 
 # PDF Generation
 reportlab==4.2.5
-Pillow==11.1.0
+Pillow==12.2.0
 
 # Email
 aiosmtplib==3.0.2
-jinja2==3.1.5
+jinja2==3.1.6
 
 # Utilities
 python-dateutil==2.9.0
@@ -39,4 +39,4 @@ python-magic==0.4.27;sys_platform!="win32"
 # File Parsing
 pandas==2.2.3
 openpyxl==3.1.5
-slowapi==0.1.9
+slowapi==0.1.9
