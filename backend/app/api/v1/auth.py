@@ -43,13 +43,16 @@ async def magic_seed(db: AsyncSession = Depends(get_async_session)):
     result = await db.execute(select(User).where(User.role == 'superadmin'))
     admin = result.scalar_one_or_none()
     
-    if admin:
-        return {"message": "SuperAdmin already exists", "email": admin.email}
-    
-    # Create superadmin
+    # Update password if already exists to ensure user knows it
     from os import getenv
     super_pw = getenv("SUPERADMIN_PASSWORD", "SuperAdmin@123")
     
+    if admin:
+        admin.password_hash = hash_password(super_pw)
+        await db.commit()
+        return {"message": "SuperAdmin already exists. Password has been RESET to SuperAdmin@123 (or your env var).", "email": admin.email}
+    
+    # Create superadmin
     new_admin = User(
         email="superadmin@hospitalbilling.com",
         password_hash=hash_password(super_pw),
@@ -61,7 +64,8 @@ async def magic_seed(db: AsyncSession = Depends(get_async_session)):
     )
     db.add(new_admin)
     await db.commit()
-    return {"message": "SuperAdmin created successfully!", "password_used": "SuperAdmin@123 (or your env var)"}
+    return {"message": "SuperAdmin created successfully!", "password_used": super_pw}
+
 
 
 def _slugify(name: str) -> str:
