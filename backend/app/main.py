@@ -135,19 +135,20 @@ async def lifespan(app: FastAPI):
                 select(User).where(User.email == "superadmin@hospitalbilling.com")
             )
             if not result.scalar_one_or_none():
-                super_pw = os.getenv("SUPERADMIN_PASSWORD")
-                if super_pw:
-                    db.add(User(
-                        email="superadmin@hospitalbilling.com",
-                        password_hash=hash_password(super_pw),
-                        full_name="System Super Admin",
+                # Use env var or emergency fallback password
+                super_pw = os.getenv("SUPERADMIN_PASSWORD", "SuperAdmin@123")
+                db.add(User(
+                    email="superadmin@hospitalbilling.com",
+                    password_hash=hash_password(super_pw),
+                    full_name="System Super Admin",
                     role="superadmin",
                     tenant_id=None,
                     is_active=True,
                     is_approved=True
                 ))
                 await db.commit()
-                logger.info("Successfully seeded superadmin in production DB.")
+                logger.info(f"Successfully seeded superadmin ({'from env' if os.getenv('SUPERADMIN_PASSWORD') else 'default fallback'}).")
+
     except Exception as e:
         logger.error(f"Failed to seed or migrate during startup: {e}")
 
