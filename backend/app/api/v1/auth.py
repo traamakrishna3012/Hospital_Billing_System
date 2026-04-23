@@ -197,7 +197,7 @@ async def login(
         t_res = await db.execute(select(Tenant.modules).where(Tenant.id == user.tenant_id))
         tenant_modules = t_res.scalar_one_or_none()
 
-    user_data = UserResponse.model_validate(user).model_dump()
+    user_data = UserResponse.model_validate(user).model_dump(mode='json')
     user_data["tenant_modules"] = tenant_modules
 
     from app.core.config import get_settings
