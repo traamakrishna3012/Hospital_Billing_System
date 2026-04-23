@@ -29,6 +29,19 @@ async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     logger.info("Starting Hospital Billing System...")
 
+    # ── Database Reset Logic ─────────────────────────────────────
+    if os.getenv("RESET_DATABASE_ON_STARTUP") == "true":
+        logger.warning("RESET_DATABASE_ON_STARTUP is TRUE. Wiping all tables...")
+        try:
+            from sqlalchemy import text
+            from app.core.database import async_session_factory
+            async with async_session_factory() as db:
+                await db.execute(text("TRUNCATE TABLE token_blocklist, bills, medical_tests, medical_test_categories, patients, doctors, users, tenants CASCADE"))
+                await db.commit()
+                logger.info("Database wiped successfully.")
+        except Exception as e:
+            logger.error(f"Failed to wipe database: {e}")
+
     # Create tables (use Alembic in production)
     try:
         await init_db()
