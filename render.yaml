@@ -4,7 +4,7 @@ services:
     name: hospital-api-staging
     env: docker
     dockerContext: .
-    dockerfilePath: ./backend/Dockerfile
+    dockerfilePath: ./Dockerfile
     branch: staging
     autoDeploy: true
     envVars:
@@ -24,7 +24,7 @@ services:
     name: hospital-api-main
     env: docker
     dockerContext: .
-    dockerfilePath: ./backend/Dockerfile
+    dockerfilePath: ./Dockerfile
     branch: main
     autoDeploy: true
     envVars:
