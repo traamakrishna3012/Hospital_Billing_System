@@ -1,3 +1,4 @@
+# Unified Multi-Stage Dockerfile for Hospital Billing System
 # --- Stage 1: Build Frontend ---
 FROM node:18-slim AS frontend-builder
 WORKDIR /app/frontend
