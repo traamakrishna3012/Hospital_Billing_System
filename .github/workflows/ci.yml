@@ -38,8 +38,7 @@ jobs:
 
     - name: Build Backend Docker Image
       run: |
-        cd backend
-        docker build -t hospital-backend:latest .
+        docker build -t hospital-backend:latest -f backend/Dockerfile .
         
     # Frontend build test
     - name: Set up Node.js
