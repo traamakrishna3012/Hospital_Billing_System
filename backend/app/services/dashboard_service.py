@@ -18,48 +18,58 @@ from app.schemas.schemas import DashboardStats, RevenueChartData, RecentTransact
 
 async def get_dashboard_stats(db: AsyncSession, tenant_id: UUID | None) -> DashboardStats:
     """Get aggregate statistics for the dashboard in a single pass for speed."""
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    try:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # 1. Revenue & Bill Stats (Single scan of Bill table)
-    bill_stmt = select(
-        func.coalesce(func.sum(case((Bill.status == "paid", Bill.total), else_=0)), 0).label("total_revenue"),
-        func.coalesce(func.sum(case((and_(Bill.status == "paid", Bill.created_at >= today_start), Bill.total), else_=0)), 0).label("today_revenue"),
-        func.coalesce(func.sum(case((and_(Bill.status == "paid", Bill.created_at >= month_start), Bill.total), else_=0)), 0).label("month_revenue"),
-        func.count(Bill.id).label("total_bills"),
-        func.count(case((Bill.created_at >= today_start, Bill.id))).label("today_bills"),
-        func.count(case((Bill.created_at >= month_start, Bill.id))).label("month_bills")
-    )
-    
-    # 2. Patient Stats
-    patient_stmt = select(func.count(Patient.id)).label("total_patients")
-    
-    # 3. Doctor Stats
-    doctor_stmt = select(func.count(Doctor.id)).where(Doctor.is_active == True).label("total_doctors")
+        # 1. Revenue & Bill Stats (Single scan of Bill table)
+        bill_stmt = select(
+            func.coalesce(func.sum(case((Bill.status == "paid", Bill.total), else_=0)), 0).label("total_revenue"),
+            func.coalesce(func.sum(case((and_(Bill.status == "paid", Bill.created_at >= today_start), Bill.total), else_=0)), 0).label("today_revenue"),
+            func.coalesce(func.sum(case((and_(Bill.status == "paid", Bill.created_at >= month_start), Bill.total), else_=0)), 0).label("month_revenue"),
+            func.count(Bill.id).label("total_bills"),
+            func.count(case((Bill.created_at >= today_start, Bill.id))).label("today_bills"),
+            func.count(case((Bill.created_at >= month_start, Bill.id))).label("month_bills")
+        )
+        
+        # 2. Patient Stats
+        patient_stmt = select(func.count(Patient.id)).label("total_patients")
+        
+        # 3. Doctor Stats
+        doctor_stmt = select(func.count(Doctor.id)).where(Doctor.is_active == True).label("total_doctors")
 
-    if tenant_id:
-        bill_stmt = bill_stmt.where(Bill.tenant_id == tenant_id)
-        patient_stmt = select(func.count(Patient.id)).where(Patient.tenant_id == tenant_id)
-        doctor_stmt = select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant_id, Doctor.is_active == True)
+        if tenant_id:
+            bill_stmt = bill_stmt.where(Bill.tenant_id == tenant_id)
+            patient_stmt = select(func.count(Patient.id)).where(Patient.tenant_id == tenant_id)
+            doctor_stmt = select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant_id, Doctor.is_active == True)
 
-    # Combine into one mega query result
-    res_bills = await db.execute(bill_stmt)
-    row_bills = res_bills.mappings().one()
-    
-    res_patients = await db.execute(patient_stmt)
-    res_doctors = await db.execute(doctor_stmt)
+        # Combine into one mega query result
+        res_bills = await db.execute(bill_stmt)
+        row_bills = res_bills.mappings().one()
+        
+        res_patients = await db.execute(patient_stmt)
+        res_doctors = await db.execute(doctor_stmt)
 
-    return DashboardStats(
-        total_revenue=float(row_bills["total_revenue"] or 0),
-        today_revenue=float(row_bills["today_revenue"] or 0),
-        month_revenue=float(row_bills["month_revenue"] or 0),
-        total_bills=row_bills["total_bills"] or 0,
-        today_bills=row_bills["today_bills"] or 0,
-        month_bills=row_bills["month_bills"] or 0,
-        total_patients=res_patients.scalar() or 0,
-        total_doctors=res_doctors.scalar() or 0,
-    )
+        return DashboardStats(
+            total_revenue=float(row_bills["total_revenue"] or 0),
+            today_revenue=float(row_bills["today_revenue"] or 0),
+            month_revenue=float(row_bills["month_revenue"] or 0),
+            total_bills=row_bills["total_bills"] or 0,
+            today_bills=row_bills["today_bills"] or 0,
+            month_bills=row_bills["month_bills"] or 0,
+            total_patients=res_patients.scalar() or 0,
+            total_doctors=res_doctors.scalar() or 0,
+        )
+    except Exception as e:
+        from loguru import logger
+        logger.error(f"Dashboard Stats Error: {e}")
+        # Return empty stats instead of crashing 500
+        return DashboardStats(
+            total_revenue=0.0, total_patients=0, total_bills=0, total_doctors=0,
+            today_revenue=0.0, today_bills=0, month_revenue=0.0, month_bills=0
+        )
+
 
 
 
@@ -70,57 +80,63 @@ async def get_revenue_chart_data(
     period: str = "daily",  # daily | weekly | monthly
     days: int = 30,
 ) -> list[RevenueChartData]:
-    """Get time-series revenue data for charts."""
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    start_date = now - timedelta(days=days)
-    if period == "monthly":
-        stmt = (
-            select(
-                func.to_char(Bill.created_at, "YYYY-MM").label("period"),
-                func.coalesce(func.sum(Bill.total), 0).label("revenue"),
-                func.count(Bill.id).label("count"),
+    """Get time-series revenue data for charts with fail-safe."""
+    try:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        start_date = now - timedelta(days=days)
+        if period == "monthly":
+            stmt = (
+                select(
+                    func.to_char(Bill.created_at, "YYYY-MM").label("period"),
+                    func.coalesce(func.sum(Bill.total), 0).label("revenue"),
+                    func.count(Bill.id).label("count"),
+                )
+                .where(Bill.status == "paid", Bill.created_at >= start_date)
+                .group_by(func.to_char(Bill.created_at, "YYYY-MM"))
+                .order_by(func.to_char(Bill.created_at, "YYYY-MM"))
             )
-            .where(Bill.status == "paid", Bill.created_at >= start_date)
-            .group_by(func.to_char(Bill.created_at, "YYYY-MM"))
-            .order_by(func.to_char(Bill.created_at, "YYYY-MM"))
-        )
-    elif period == "weekly":
-        stmt = (
-            select(
-                func.to_char(Bill.created_at, "IYYY-IW").label("period"),
-                func.coalesce(func.sum(Bill.total), 0).label("revenue"),
-                func.count(Bill.id).label("count"),
+        elif period == "weekly":
+            stmt = (
+                select(
+                    func.to_char(Bill.created_at, "IYYY-IW").label("period"),
+                    func.coalesce(func.sum(Bill.total), 0).label("revenue"),
+                    func.count(Bill.id).label("count"),
+                )
+                .where(Bill.status == "paid", Bill.created_at >= start_date)
+                .group_by(func.to_char(Bill.created_at, "IYYY-IW"))
+                .order_by(func.to_char(Bill.created_at, "IYYY-IW"))
             )
-            .where(Bill.status == "paid", Bill.created_at >= start_date)
-            .group_by(func.to_char(Bill.created_at, "IYYY-IW"))
-            .order_by(func.to_char(Bill.created_at, "IYYY-IW"))
-        )
-    else:
-        stmt = (
-            select(
-                func.to_char(Bill.created_at, "YYYY-MM-DD").label("period"),
-                func.coalesce(func.sum(Bill.total), 0).label("revenue"),
-                func.count(Bill.id).label("count"),
+        else:
+            stmt = (
+                select(
+                    func.to_char(Bill.created_at, "YYYY-MM-DD").label("period"),
+                    func.coalesce(func.sum(Bill.total), 0).label("revenue"),
+                    func.count(Bill.id).label("count"),
+                )
+                .where(Bill.status == "paid", Bill.created_at >= start_date)
+                .group_by(func.to_char(Bill.created_at, "YYYY-MM-DD"))
+                .order_by(func.to_char(Bill.created_at, "YYYY-MM-DD"))
             )
-            .where(Bill.status == "paid", Bill.created_at >= start_date)
-            .group_by(func.to_char(Bill.created_at, "YYYY-MM-DD"))
-            .order_by(func.to_char(Bill.created_at, "YYYY-MM-DD"))
-        )
 
-    if tenant_id:
-        stmt = stmt.where(Bill.tenant_id == tenant_id)
+        if tenant_id:
+            stmt = stmt.where(Bill.tenant_id == tenant_id)
 
-    result = await db.execute(stmt)
-    rows = result.mappings().all()
+        result = await db.execute(stmt)
+        rows = result.mappings().all()
 
-    return [
-        RevenueChartData(
-            label=row["period"], 
-            revenue=float(row["revenue"] or 0), 
-            count=row["count"] or 0
-        )
-        for row in rows
-    ]
+        return [
+            RevenueChartData(
+                label=row["period"], 
+                revenue=float(row["revenue"] or 0), 
+                count=row["count"] or 0
+            )
+            for row in rows
+        ]
+    except Exception as e:
+        from loguru import logger
+        logger.error(f"Dashboard Chart Error: {e}")
+        return []
+
 
 
 
