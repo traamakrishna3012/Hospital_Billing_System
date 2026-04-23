@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -107,6 +107,15 @@ async def lifespan(app: FastAPI):
                 await db.rollback()
                 logger.warning(f"Migration (staff auto-approval) skipped: {e}")
 
+            # 7. Manual Migration - SuperAdmin: Always approve
+            try:
+                await db.execute(text("UPDATE users SET is_approved = true WHERE role = 'superadmin'"))
+                await db.commit()
+                logger.info("Migration: superadmins auto-approved")
+            except Exception as e:
+                await db.rollback()
+                logger.warning(f"Migration (superadmin approval) skipped: {e}")
+
             # 3. Seed SuperAdmin
             result = await db.execute(
                 select(User).where(User.email == "superadmin@hospitalbilling.com")
@@ -129,7 +138,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to seed or migrate during startup: {e}")
 
+    # Log static directory for debugging
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    static_dir = os.path.join(base_dir, "static")
+    logger.info(f"Static directory: {static_dir}")
+    if os.path.exists(static_dir):
+        logger.info(f"Static directory contents: {os.listdir(static_dir)}")
+    else:
+        logger.warning("Static directory does NOT exist!")
+
     # Background task: prune expired tokens from the blocklist every 6 hours
+
     import asyncio
     from datetime import datetime, timezone
     from sqlalchemy import delete as sql_delete
@@ -281,43 +300,43 @@ app.include_router(superadmin_router, prefix=API_PREFIX)
 
 
 # ── SPA Frontend Serving ─────────────────────────────────────
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
 # Path to the static files directory (populated during Docker build)
-# __file__ is /app/app/main.py -> dirname(dirname(__file__)) is /app
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-# Mount assets folder if it exists
-assets_path = os.path.join(STATIC_DIR, "assets")
-if os.path.exists(assets_path):
-    app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+class SPAStaticFiles(StaticFiles):
+    """Custom StaticFiles that serves index.html for 404s (SPA routing)."""
+    async def get_response(self, path: str, scope):
+        try:
+            response = await super().get_response(path, scope)
+            # Add no-cache to index.html to ensure users always get the latest build
+            if path == "" or path == "index.html" or response.status_code == 404:
+                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
+            return response
+        except (HTTPException, Exception) as e:
+            if scope["path"].startswith("/api"):
+                raise e
+            
+            index_path = os.path.join(STATIC_DIR, "index.html")
+            if os.path.exists(index_path):
+                response = FileResponse(index_path)
+                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                return response
+            raise e
 
-@app.get("/", include_in_schema=False)
-async def serve_index():
-    index_path = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return JSONResponse({"detail": "Frontend not built"}, status_code=500)
 
-@app.get("/{full_path:path}", include_in_schema=False)
-async def catch_all(full_path: str):
-    # API 404s
-    if full_path.startswith("api/"):
-        return JSONResponse({"detail": f"API endpoint '/{full_path}' not found"}, status_code=404)
-    
-    # Physical files in static root (favicon, etc)
-    file_path = os.path.join(STATIC_DIR, full_path)
-    if os.path.isfile(file_path):
-        return FileResponse(file_path)
-    
-    # SPA routing - return index.html for everything else
-    index_path = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    
-    return JSONResponse({"detail": "Not Found"}, status_code=404)
+# Mount the SPA handler at root
+if os.path.exists(STATIC_DIR):
+    app.mount("/", SPAStaticFiles(directory=STATIC_DIR, html=True), name="spa")
+else:
+    logger.warning(f"Static directory {STATIC_DIR} not found. Frontend serving disabled.")
+
 
 
 
