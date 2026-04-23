@@ -2,6 +2,13 @@ import requests
 import json
 import time
 import os
+import sys
+
+# ── Required Environment Variables ────────────────────────────
+REQUIRED_VARS = ["DEMO_ADMIN_PASSWORD", "SUPERADMIN_PASSWORD"]
+for var in REQUIRED_VARS:
+    if not os.environ.get(var):
+        sys.exit(f"Error: Required environment variable '{var}' is not set.")
 
 BASE_URL = "https://hospital-billing-system-pccq.onrender.com/api/v1"
 
@@ -83,8 +90,8 @@ print("Patient: Alex Patient")
 # --- 4. SEED SUPERADMIN (PLATFORM MANAGEMENT) ---
 # Note: In a real system, you'd do this via a secure internal script or directly in DB
 print("\nSeeding SuperAdmin (Optional check via Backend API)...")
-super_admin_email = "superadmin@hospitalbilling.com"
-super_admin_pass = os.environ.get("SUPERADMIN_PASSWORD", "N/A - Provide Env Var")
+super_admin_email = os.environ.get("SUPERADMIN_EMAIL", "superadmin@hospitalbilling.com")
+super_admin_pass = os.environ["SUPERADMIN_PASSWORD"]
 
 # We can try to hit a hypothetical root-only creation or use this as a reminder to do it in DB
 # For this lab, we'll assume the user might manually add or we can provide a small script to inject it.

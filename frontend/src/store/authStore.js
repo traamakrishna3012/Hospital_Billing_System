@@ -6,6 +6,9 @@ export const useAuthStore = create(
   persist(
     (set, get) => ({
       user: null,
+      // Tokens are now managed as HttpOnly cookies by the browser.
+      // We keep these fields for backwards compatibility with the request interceptor,
+      // but they are NOT persisted to localStorage (see partialize below).
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
@@ -30,13 +33,11 @@ export const useAuthStore = create(
       setUser: (user) => set({ user }),
 
       logout: async () => {
-        const { refreshToken } = get();
-        if (refreshToken) {
-          try {
-            await authAPI.logout({ refresh_token: refreshToken });
-          } catch (e) {
-            console.error('Logout API failed:', e);
-          }
+        try {
+          // Server clears HttpOnly cookies in the response
+          await authAPI.logout({});
+        } catch (e) {
+          console.error('Logout API failed:', e);
         }
         set({
           user: null,
@@ -51,10 +52,10 @@ export const useAuthStore = create(
     }),
     {
       name: 'hbs-auth',
+      // Only persist user profile and auth flag — NOT tokens.
+      // Tokens live in HttpOnly cookies managed by the browser.
       partialize: (state) => ({
         user: state.user,
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
     }

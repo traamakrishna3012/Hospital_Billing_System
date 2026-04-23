@@ -3,6 +3,12 @@ import os
 import sys
 from uuid import uuid4
 
+# ── Required Environment Variables ────────────────────────────
+REQUIRED_VARS = ["SUPERADMIN_EMAIL", "SUPERADMIN_PASSWORD"]
+for var in REQUIRED_VARS:
+    if not os.environ.get(var):
+        sys.exit(f"Error: Required environment variable '{var}' is not set.")
+
 # Add the backend directory to sys.path so we can import from app
 BACKEND_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'backend'))
 if BACKEND_PATH not in sys.path:
@@ -14,8 +20,8 @@ from app.core.security import hash_password
 from app.models.user import User
 
 async def create_superadmin():
-    email = "superadmin@hospitalbilling.com"  # Change this to your preferred email
-    password = "SuperSecure123"               # Change this to your preferred password
+    email = os.environ["SUPERADMIN_EMAIL"]
+    password = os.environ["SUPERADMIN_PASSWORD"]
     full_name = "System Super Admin"
 
     async with async_session_factory() as db:
@@ -41,7 +47,7 @@ async def create_superadmin():
         await db.commit()
         print(f"Successfully created Super Admin!")
         print(f"Email: {email}")
-        print(f"Password: {password}")
+        # NOTE: Password is intentionally NOT printed for security.
 
 if __name__ == "__main__":
     if sys.platform == 'win32':

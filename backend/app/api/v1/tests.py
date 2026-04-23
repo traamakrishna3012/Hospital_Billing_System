@@ -4,13 +4,17 @@ Medical test and test category routes.
 
 from __future__ import annotations
 
+import os
+import re
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status, File, UploadFile
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
+from loguru import logger
 import pandas as pd
+import magic
 import io
 
 from app.core.deps import CurrentUser, DBSession, TenantID
@@ -27,21 +31,31 @@ from app.schemas.schemas import (
 
 router = APIRouter(prefix="/tests", tags=["Tests & Services"])
 
-def _parse_file(file_content: bytes, filename: str) -> pd.DataFrame:
-    df = pd.DataFrame()
-    ext = filename.lower().split('.')[-1]
-    
-    try:
-        if ext == 'csv':
-            df = pd.read_csv(io.BytesIO(file_content))
-        elif ext in ['xls', 'xlsx']:
-            df = pd.read_excel(io.BytesIO(file_content))
-        else:
-            raise ValueError("Unsupported format. Please use CSV or Excel (.xlsx)")
-    except Exception as e:
-        raise ValueError(f"Failed to parse {ext} file: {str(e)}")
-        
-    return df
+# ── Security Constants ────────────────────────────────────────
+MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_ROW_COUNT = 1000
+ALLOWED_MIMES = {
+    "text/csv",
+    "text/plain",                   # some OS report CSV as text/plain
+    "application/csv",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_cell(value):
+    """Neutralize spreadsheet formula injection in a cell value."""
+    if isinstance(value, str) and value.startswith(_INJECTION_PREFIXES):
+        return "'" + value
+    return value
+
+
+def _sanitize_filename(raw: str) -> str:
+    """Strip dangerous characters from a filename for safe logging/use."""
+    base = os.path.basename(raw) if raw else "upload"
+    return re.sub(r"[^a-zA-Z0-9_\-\.]", "_", base)
+
 
 @router.post("/bulk-upload", status_code=status.HTTP_201_CREATED, summary="Bulk import tests")
 async def bulk_upload_tests(
@@ -50,64 +64,115 @@ async def bulk_upload_tests(
     current_user: CurrentUser,
     file: UploadFile = File(...)
 ):
-    content = await file.read()
+    safe_name = _sanitize_filename(file.filename)
+    logger.info(f"Bulk upload started by user {current_user.id}: {safe_name}")
+
+    # ── V-06: File size cap ───────────────────────────────────
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File too large. Maximum allowed size is 5MB.",
+        )
+
+    # ── V-04: Magic-byte MIME validation ──────────────────────
+    detected_mime = magic.from_buffer(contents[:2048], mime=True)
+    if detected_mime not in ALLOWED_MIMES:
+        logger.warning(f"Rejected upload {safe_name}: detected MIME {detected_mime}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file type. Only CSV and Excel files are permitted.",
+        )
+
+    # ── V-08: Robust parsing ─────────────────────────────────
     try:
-        df = _parse_file(content, file.filename)
+        if detected_mime in {"text/csv", "text/plain", "application/csv"}:
+            df = pd.read_csv(io.BytesIO(contents))
+        else:
+            df = pd.read_excel(io.BytesIO(contents))
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-        
+        logger.error(f"Bulk upload parse error for {safe_name}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not parse the uploaded file. Please ensure it is a valid CSV or Excel file.",
+        )
+
     if df.empty:
-        raise HTTPException(status_code=400, detail="Parsed file contains no data or could not be read properly.")
-    
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Parsed file contains no data or could not be read properly.",
+        )
+
+    # ── V-06: Row count cap ──────────────────────────────────
+    if len(df) > MAX_ROW_COUNT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Too many rows. Maximum allowed is {MAX_ROW_COUNT}.",
+        )
+
+    # ── V-05: CSV injection sanitization ─────────────────────
+    str_cols = df.select_dtypes(include=["object"]).columns
+    df[str_cols] = df[str_cols].applymap(_sanitize_cell)
+
     # Standardize columns
     df.columns = [str(c).strip().lower() for c in df.columns]
-    
+
     # Needs: name, code, price. Category is optional
-    required_cols = ['name', 'price', 'code']
+    required_cols = ["name", "price", "code"]
     if not all(col in df.columns for col in required_cols):
         missing = [c for c in required_cols if c not in df.columns]
         raise HTTPException(
-            status_code=400, 
-            detail=f"File must contain 'name', 'price', and 'code' columns. Missing: {', '.join(missing)}"
+            status_code=400,
+            detail=f"File must contain 'name', 'price', and 'code' columns. Missing: {', '.join(missing)}",
         )
-        
+
     records_added = 0
     categories_cache = {}
-    
+
     # Fetch existing categories to avoid duplicates
-    existing_cats = await db.execute(select(TestCategory).where(TestCategory.tenant_id == tenant_id))
+    existing_cats = await db.execute(
+        select(TestCategory).where(TestCategory.tenant_id == tenant_id)
+    )
     for cat in existing_cats.scalars():
         categories_cache[cat.name.lower()] = cat.id
 
     for _, row in df.iterrows():
-        name = str(row.get('name', '')).strip()
+        name = str(row.get("name", "")).strip()
         if not name:
             continue
-            
-        code = str(row.get('code', '')).strip()
-        cat_name = str(row.get('category', '')).strip()
-        price_raw = str(row.get('price', '0')).replace(',', '').replace('₹', '').replace('$', '').strip()
-        
+
+        code = str(row.get("code", "")).strip()
+        cat_name = str(row.get("category", "")).strip()
+        price_raw = (
+            str(row.get("price", "0"))
+            .replace(",", "")
+            .replace("₹", "")
+            .replace("$", "")
+            .strip()
+        )
+
         try:
             price = float(price_raw)
-        except:
+        except (ValueError, TypeError):
             price = 0.0
-            
+
         cat_id = None
         if cat_name:
             if cat_name.lower() in categories_cache:
                 cat_id = categories_cache[cat_name.lower()]
             else:
-                new_cat = TestCategory(tenant_id=tenant_id, name=cat_name, description="Auto-imported")
+                new_cat = TestCategory(
+                    tenant_id=tenant_id, name=cat_name, description="Auto-imported"
+                )
                 db.add(new_cat)
                 await db.flush()
                 categories_cache[cat_name.lower()] = new_cat.id
                 cat_id = new_cat.id
-                
+
         if not code:
             raise HTTPException(
-                status_code=400, 
-                detail=f"Mandatory 'code' is missing for test: '{name}'. Please ensure every row has a unique test code."
+                status_code=400,
+                detail=f"Mandatory 'code' is missing for test: '{name}'. Please ensure every row has a unique test code.",
             )
 
         # Upsert Test
@@ -117,12 +182,13 @@ async def bulk_upload_tests(
             code=code,
             category_id=cat_id,
             price=price,
-            description="Imported in bulk"
+            description="Imported in bulk",
         )
         db.add(test)
         records_added += 1
-        
+
     await db.commit()
+    logger.info(f"Bulk upload complete for {safe_name}: {records_added} records imported.")
     return {"message": f"Successfully imported {records_added} records."}
 
 

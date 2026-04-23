@@ -76,21 +76,29 @@ async def export_bills_csv(
         "Payment Mode",
     ])
 
+    _INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+    def _sanitize_csv(val: str) -> str:
+        """Neutralize spreadsheet formula injection in exported CSV fields."""
+        if isinstance(val, str) and val.startswith(_INJECTION_PREFIXES):
+            return "'" + val
+        return val
+
     for bill in bills:
         writer.writerow([
-            bill.bill_number,
+            _sanitize_csv(bill.bill_number or ""),
             bill.created_at.strftime("%Y-%m-%d %H:%M") if bill.created_at else "",
-            bill.patient.name if bill.patient else "N/A",
-            bill.patient.phone if bill.patient else "N/A",
-            bill.doctor.name if bill.doctor else "N/A",
+            _sanitize_csv(bill.patient.name if bill.patient else "N/A"),
+            _sanitize_csv(bill.patient.phone if bill.patient else "N/A"),
+            _sanitize_csv(bill.doctor.name if bill.doctor else "N/A"),
             float(bill.subtotal),
             float(bill.tax_percent),
             float(bill.tax_amount),
             float(bill.discount_percent),
             float(bill.discount_amount),
             float(bill.total),
-            bill.status,
-            bill.payment_mode,
+            _sanitize_csv(bill.status or ""),
+            _sanitize_csv(bill.payment_mode or ""),
         ])
 
     output.seek(0)
