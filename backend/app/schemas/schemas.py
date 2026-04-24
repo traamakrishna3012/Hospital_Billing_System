@@ -101,6 +101,19 @@ class UserUpdateRequest(BaseModel):
     role: Optional[str] = Field(None, pattern="^(admin|staff|doctor)$")
     is_active: Optional[bool] = None
     modules: Optional[dict] = None   # per-staff module access control
+    password: Optional[str] = Field(None, min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        return v
+
 
 
 # ═══════════════════════════════════════════════════════════════

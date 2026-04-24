@@ -64,9 +64,11 @@ export default function StaffPage() {
       full_name: user.full_name,
       phone: user.phone || '',
       role: user.role,
+      password: '',
       // If user already has modules set, use them; otherwise default all on
       modules: user.modules ?? defaultModules(),
     });
+
     setModalOpen(true);
   };
 
@@ -86,8 +88,10 @@ export default function StaffPage() {
           phone: form.phone,
           role: form.role,
           modules: form.modules,
+          password: form.password || undefined,
         });
         toast.success('User updated');
+
       } else {
         await userAPI.create({
           email: form.email,
@@ -223,9 +227,27 @@ export default function StaffPage() {
             </select>
           </div>
 
+          {editing && (
+            <div className="pt-2 border-t border-surface-100">
+              <label className="label-text flex items-center gap-2">
+                <Key className="w-3.5 h-3.5 text-surface-400" /> Reset Password
+              </label>
+              <input 
+                type="password" 
+                placeholder="Leave blank to keep current" 
+                value={form.password} 
+                onChange={(e) => setForm({ ...form, password: e.target.value })} 
+                className="input-field" 
+              />
+              <p className="text-[10px] text-surface-400 mt-1">
+                Enter a new password if the staff member forgot theirs.
+              </p>
+            </div>
+          )}
+
           {/* Module Access Control — only shown when editing non-admin staff */}
           {editing && showModules && (
-            <div>
+            <div className="pt-2 border-t border-surface-100">
               <div className="flex items-center gap-2 mb-3">
                 <ShieldCheck className="w-4 h-4 text-primary-500" />
                 <label className="label-text mb-0">Module Access Permissions</label>
@@ -265,6 +287,7 @@ export default function StaffPage() {
               </div>
             </div>
           )}
+
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>

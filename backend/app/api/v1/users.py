@@ -140,9 +140,13 @@ async def update_user(
             )
 
     for key, value in data.model_dump(exclude_unset=True).items():
-        setattr(user, key, value)
+        if key == "password" and value:
+            user.password_hash = hash_password(value)
+        else:
+            setattr(user, key, value)
 
     await db.commit()
+
     await db.refresh(user)
     return UserResponse.model_validate(user)
 
