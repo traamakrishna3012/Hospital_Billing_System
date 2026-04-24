@@ -245,12 +245,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
+            "script-src 'self'; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com data:; "
-            "img-src 'self' data:; "
-            "connect-src 'self';"
+            "img-src 'self' data: blob:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self';"
         )
+
 
         response.headers["Server"] = "Hidden"
         return response
