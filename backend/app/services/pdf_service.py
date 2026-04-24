@@ -104,17 +104,18 @@ def _load_logo(logo_url: Optional[str], w=18 * mm, h=18 * mm) -> Optional[Image]
             from PIL import Image as PILImage
             pil_img = PILImage.open(buf)
             
-            # Normalise to avoid ReportLab issues with specific PNG variants
-            if pil_img.mode in ("RGBA", "P"):
-                pil_img = pil_img.convert("RGBA")
-            else:
-                pil_img = pil_img.convert("RGB")
+            # Save to a fresh buffer as PNG for absolute compatibility with ReportLab
+            # (ReportLab sometimes struggles with specific JPEG/WEBP header variations)
+            png_buf = BytesIO()
+            pil_img.save(png_buf, format="PNG")
+            png_buf.seek(0)
             
-            return Image(pil_img, width=w, height=h)
+            return Image(png_buf, width=w, height=h)
         except Exception as e:
             from loguru import logger
             logger.error(f"PDF Logo Load Error (Base64): {e}")
             return None
+
 
 
 
