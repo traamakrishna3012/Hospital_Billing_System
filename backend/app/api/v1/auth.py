@@ -176,11 +176,10 @@ async def login(
     _settings = get_settings()
 
     response = JSONResponse(content={
-        "access_token": access_token,
-        "refresh_token": refresh_token,
         "token_type": "bearer",
         "user": user_data,
     })
+
 
     # Set HttpOnly cookies — immune to XSS token theft
     _is_secure = _settings.APP_ENV != "development"
@@ -205,10 +204,18 @@ async def login(
 
     return response
 
-@router.post("/refresh", response_model=TokenResponse, summary="Refresh access token")
-async def refresh_token(data: RefreshRequest, db: DBSession):
-    """Get a new access token using a refresh token."""
-    payload = decode_token(data.refresh_token)
+async def refresh_token(request: Request, db: DBSession, data: RefreshRequest = Body(None)):
+    """Get a new access token using a refresh token from body or cookie."""
+    rt = data.refresh_token if data and data.refresh_token else request.cookies.get("refresh_token")
+    
+    if not rt:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token missing",
+        )
+
+    payload = decode_token(rt)
+
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -253,20 +260,46 @@ async def refresh_token(data: RefreshRequest, db: DBSession):
     access_token = create_access_token(user.id, user.tenant_id, user.role)
     new_refresh_token = create_refresh_token(user.id, user.tenant_id)
 
+    # Prepare response
+    user_data = UserResponse.model_validate(user).model_dump()
     # Fetch tenant modules
     tenant_modules = None
     if user.tenant_id:
         t_res = await db.execute(select(Tenant.modules).where(Tenant.id == user.tenant_id))
         tenant_modules = t_res.scalar_one_or_none()
-
-    user_data = UserResponse.model_validate(user).model_dump()
     user_data["tenant_modules"] = tenant_modules
 
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=new_refresh_token,
-        user=user_data,
+    response = JSONResponse(content={
+        "token_type": "bearer",
+        "user": user_data,
+    })
+
+    # Update cookies
+    from app.core.config import get_settings
+    _settings = get_settings()
+    _is_secure = _settings.APP_ENV != "development"
+    
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=_is_secure,
+        samesite="lax",
+        max_age=_settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
     )
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=_is_secure,
+        samesite="lax",
+        max_age=_settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path="/api/v1/auth",
+    )
+
+    return response
+
 
 
 @router.get("/me", response_model=UserResponse, summary="Get current user profile")

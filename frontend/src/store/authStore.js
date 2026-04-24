@@ -6,14 +6,9 @@ export const useAuthStore = create(
   persist(
     (set, get) => ({
       user: null,
-      // Tokens are now managed as HttpOnly cookies by the browser.
-      // We keep these fields for backwards compatibility with the request interceptor,
-      // but they are NOT persisted to localStorage (see partialize below).
-      accessToken: null,
-      refreshToken: null,
       isAuthenticated: false,
 
-      setAuth: (user, accessToken, refreshToken) => {
+      setAuth: (user) => {
         // Ensure is_approved is captured and defaulted for safety
         const userWithApproval = { 
           ...user, 
@@ -21,14 +16,9 @@ export const useAuthStore = create(
         };
         set({
           user: userWithApproval,
-          accessToken,
-          refreshToken,
           isAuthenticated: true,
         });
       },
-
-      setTokens: (accessToken, refreshToken) =>
-        set({ accessToken, refreshToken }),
 
       setUser: (user) => set({ user }),
 
@@ -41,11 +31,10 @@ export const useAuthStore = create(
         }
         set({
           user: null,
-          accessToken: null,
-          refreshToken: null,
           isAuthenticated: false,
         });
       },
+
 
       isAdmin: () => get().user?.role === 'admin',
       isSuperAdmin: () => get().user?.role === 'superadmin',

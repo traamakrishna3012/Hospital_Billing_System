@@ -18,7 +18,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await authAPI.login(form);
-      setAuth(data.user, data.access_token, data.refresh_token);
+      setAuth(data.user);
+
       toast.success(`Welcome back, ${data.user.full_name}!`);
       navigate('/dashboard');
     } catch (err) {

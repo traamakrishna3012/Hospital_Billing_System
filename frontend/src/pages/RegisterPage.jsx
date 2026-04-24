@@ -31,7 +31,8 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { data } = await authAPI.register(form);
-      setAuth(data.user, data.access_token, data.refresh_token);
+      setAuth(data.user);
+
       toast.success('Clinic registered successfully!');
       // Redirection logic will be handled by the Route Guard in App.jsx but we'll push them to root/dashboard
       navigate('/'); 

@@ -15,19 +15,10 @@ const base = getApiBaseUrl();
 const api = axios.create({
   baseURL: base,
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,
+  withCredentials: true, // Crucial for sending HttpOnly cookies
 });
 
-// Attach JWT token to every request
-api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Handle 401 — auto logout or refresh
+// Handle 401 — auto refresh or logout
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -38,27 +29,21 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      if (authStore.refreshToken) {
-        try {
-          const res = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {
-            refresh_token: authStore.refreshToken,
-          });
-          authStore.setTokens(res.data.access_token, res.data.refresh_token);
-          originalRequest.headers.Authorization = `Bearer ${res.data.access_token}`;
-          return api(originalRequest);
-        } catch (refreshError) {
-          authStore.logout();
-          // Fail silently on refresh failure to avoid console noise
-          return new Promise(() => {}); 
-        }
-      } else {
+      try {
+        // Call refresh endpoint — browser sends refresh_token cookie automatically
+        await axios.post(`${api.defaults.baseURL}/auth/refresh`, {}, { withCredentials: true });
+        // Retry the original request
+        return api(originalRequest);
+      } catch (refreshError) {
         authStore.logout();
-        return new Promise(() => {}); // Prevent further error propagation
+        // Fail silently on refresh failure to avoid console noise
+        return new Promise(() => {}); 
       }
     }
     return Promise.reject(error);
   }
 );
+
 
 
 // ── Auth API ─────────────────────────────────────────────────
