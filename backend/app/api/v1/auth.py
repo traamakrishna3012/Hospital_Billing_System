@@ -36,35 +36,7 @@ from app.core.limiter import limiter
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.get("/magic-seed", tags=["Emergency"])
-async def magic_seed(db: AsyncSession = Depends(get_async_session)):
-    """Emergency route to force-create the superadmin if seeding failed."""
-    # Check if admin already exists
-    result = await db.execute(select(User).where(User.role == 'superadmin'))
-    admin = result.scalar_one_or_none()
-    
-    # Update password if already exists to ensure user knows it
-    from os import getenv
-    super_pw = getenv("SUPERADMIN_PASSWORD", "SuperAdmin@123")
-    
-    if admin:
-        admin.password_hash = hash_password(super_pw)
-        await db.commit()
-        return {"message": "SuperAdmin already exists. Password has been RESET to SuperAdmin@123 (or your env var).", "email": admin.email}
-    
-    # Create superadmin
-    new_admin = User(
-        email="superadmin@hospitalbilling.com",
-        password_hash=hash_password(super_pw),
-        full_name="System Super Admin",
-        role="superadmin",
-        tenant_id=None,
-        is_active=True,
-        is_approved=True
-    )
-    db.add(new_admin)
-    await db.commit()
-    return {"message": "SuperAdmin created successfully!", "password_used": super_pw}
+
 
 
 

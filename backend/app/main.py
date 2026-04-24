@@ -136,7 +136,10 @@ async def lifespan(app: FastAPI):
             )
             if not result.scalar_one_or_none():
                 # Use env var or emergency fallback password
-                super_pw = os.getenv("SUPERADMIN_PASSWORD", "SuperAdmin@123")
+                super_pw = os.getenv("SUPERADMIN_PASSWORD")
+                if not super_pw:
+                    raise RuntimeError("SUPERADMIN_PASSWORD environment variable must be set. No default is allowed.")
+
                 db.add(User(
                     email="superadmin@hospitalbilling.com",
                     password_hash=hash_password(super_pw),
@@ -147,7 +150,8 @@ async def lifespan(app: FastAPI):
                     is_approved=True
                 ))
                 await db.commit()
-                logger.info(f"Successfully seeded superadmin ({'from env' if os.getenv('SUPERADMIN_PASSWORD') else 'default fallback'}).")
+                logger.info("Successfully seeded superadmin from env.")
+
 
     except Exception as e:
         logger.error(f"Failed to seed or migrate during startup: {e}")
