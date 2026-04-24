@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  UserCog, Plus, Pencil, Trash2,
+  UserCog, Plus, Pencil, Trash2, Key,
   Users, Stethoscope, FlaskConical, Receipt, FileBarChart, LayoutDashboard, ShieldCheck
 } from 'lucide-react';
+
 import toast from 'react-hot-toast';
 import { userAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
