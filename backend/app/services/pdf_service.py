@@ -100,14 +100,22 @@ def _load_logo(logo_url: Optional[str], w=18 * mm, h=18 * mm) -> Optional[Image]
             buf = BytesIO(raw)
             buf.seek(0)
             
-            # Robust loading: ReportLab Image can take BytesIO directly
-            # but using ImageReader ensures format sniffing works correctly
-            img_reader = ImageReader(buf)
-            return Image(img_reader, width=w, height=h)
+            # Use Pillow for robust format sniffing and normalization
+            from PIL import Image as PILImage
+            pil_img = PILImage.open(buf)
+            
+            # Normalise to avoid ReportLab issues with specific PNG variants
+            if pil_img.mode in ("RGBA", "P"):
+                pil_img = pil_img.convert("RGBA")
+            else:
+                pil_img = pil_img.convert("RGB")
+            
+            return Image(pil_img, width=w, height=h)
         except Exception as e:
             from loguru import logger
             logger.error(f"PDF Logo Load Error (Base64): {e}")
             return None
+
 
 
     # ── 2. Absolute path on disk
