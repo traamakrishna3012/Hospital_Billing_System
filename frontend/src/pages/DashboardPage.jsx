@@ -10,7 +10,9 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { dashboardAPI } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import { StatCard, LoadingSpinner, StatusBadge } from '../components/UI';
+
 
 export default function DashboardPage() {
   const { isAuthenticated } = useAuthStore();
