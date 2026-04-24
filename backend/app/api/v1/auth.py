@@ -29,7 +29,9 @@ from app.schemas.schemas import (
     RegisterRequest,
     TokenResponse,
     UserResponse,
+    PasswordChangeRequest,
 )
+
 from app.services.email_service import send_welcome_email
 from app.core.limiter import limiter
 
@@ -373,3 +375,53 @@ async def logout(
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/api/v1/auth")
     return response
+
+
+@router.post("/change-password", summary="Change current user password")
+async def change_password(
+    data: PasswordChangeRequest,
+    current_user: CurrentUser,
+    db: DBSession
+):
+    """Change the authenticated user's password."""
+    from app.core.security import verify_password, hash_password
+    
+    # 1. Verify current password
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password"
+        )
+    
+    # 2. Update password
+    current_user.password_hash = hash_password(data.new_password)
+    db.add(current_user)
+    await db.commit()
+    
+    return {"message": "Password updated successfully"}
+
+
+
+@router.post("/change-password", summary="Change current user password")
+async def change_password(
+    data: PasswordChangeRequest,
+    current_user: CurrentUser,
+    db: DBSession
+):
+    """Change the authenticated user's password."""
+    from app.core.security import verify_password, hash_password
+    
+    # 1. Verify current password
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password"
+        )
+    
+    # 2. Update password
+    current_user.password_hash = hash_password(data.new_password)
+    db.add(current_user)
+    await db.commit()
+    
+    return {"message": "Password updated successfully"}
+

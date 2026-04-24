@@ -53,7 +53,9 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   logout: (data) => api.post('/auth/logout', data),
   getMe: () => api.get('/auth/me'),
+  changePassword: (data) => api.post('/auth/change-password', data),
 };
+
 
 // ── Patient API ──────────────────────────────────────────────
 

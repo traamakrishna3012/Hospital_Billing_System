@@ -15,6 +15,8 @@ import ReportsPage from './pages/ReportsPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import SuperAdminTenantsPage from './pages/SuperAdminTenantsPage';
 import SuperAdminRevenuePage from './pages/SuperAdminRevenuePage';
+import SuperAdminSettingsPage from './pages/SuperAdminSettingsPage';
+
 
 import PendingApprovalPage from './pages/PendingApprovalPage';
 
@@ -88,7 +90,8 @@ export default function App() {
           <Route path="super/dashboard" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
           <Route path="super/tenants" element={<SuperAdminRoute><SuperAdminTenantsPage /></SuperAdminRoute>} />
           <Route path="super/revenue" element={<SuperAdminRoute><SuperAdminRevenuePage /></SuperAdminRoute>} />
-          <Route path="super/settings" element={<SuperAdminRoute><SettingsPage /></SuperAdminRoute>} />
+          <Route path="super/settings" element={<SuperAdminRoute><SuperAdminSettingsPage /></SuperAdminRoute>} />
+
         </Route>
 
 
