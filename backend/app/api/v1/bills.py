@@ -303,15 +303,26 @@ async def email_bill_receipt(
     if not bill:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bill not found")
 
-    if not bill.patient or not bill.patient.email:
+    # Load patient explicitly to verify email
+    from app.models.patient import Patient
+    patient_result = await db.execute(
+        select(Patient).where(Patient.id == bill.patient_id, Patient.tenant_id == tenant_id)
+    )
+    patient = patient_result.scalar_one_or_none()
+
+    if not patient or not patient.email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Patient does not have an email address",
+            detail="Patient has no registered email address."
         )
+    
+    # Securely override recipient with the verified patient email
+    recipient_email = patient.email
 
     # Load tenant
     tenant_result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
     tenant = tenant_result.scalar_one()
+
 
     # Generate PDF
     bill_data = {
@@ -371,8 +382,8 @@ async def email_bill_receipt(
     # Send email
     background_tasks.add_task(
         send_bill_receipt_email,
-        patient_email=bill.patient.email,
-        patient_name=bill.patient.name,
+        patient_email=recipient_email,
+        patient_name=patient.name,
         clinic_name=tenant.name,
         bill_number=bill.bill_number,
         total=float(bill.total),
@@ -380,7 +391,8 @@ async def email_bill_receipt(
         pdf_bytes=pdf_bytes,
     )
 
-    return {"message": "Receipt email has been queued for delivery", "email": bill.patient.email}
+    return {"message": "Receipt email has been queued for delivery", "email": recipient_email}
+
 
 
 @router.get("/{bill_id}/file", summary="Serve bill PDF securely")
