@@ -93,14 +93,22 @@ def _load_logo(logo_url: Optional[str], w=18 * mm, h=18 * mm) -> Optional[Image]
     # ── 1. Base64 data-URL (preferred — no filesystem needed)
     if logo_url.startswith("data:"):
         try:
+            if "," not in logo_url:
+                return None
             header, b64data = logo_url.split(",", 1)
             raw = base64.b64decode(b64data)
             buf = BytesIO(raw)
-            # Use ImageReader for robust format detection from buffer
+            buf.seek(0)
+            
+            # Robust loading: ReportLab Image can take BytesIO directly
+            # but using ImageReader ensures format sniffing works correctly
             img_reader = ImageReader(buf)
             return Image(img_reader, width=w, height=h)
-        except Exception:
+        except Exception as e:
+            from loguru import logger
+            logger.error(f"PDF Logo Load Error (Base64): {e}")
             return None
+
 
     # ── 2. Absolute path on disk
     if os.path.isabs(logo_url) and os.path.exists(logo_url):

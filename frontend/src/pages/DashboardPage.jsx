@@ -13,6 +13,7 @@ import { dashboardAPI } from '../services/api';
 import { StatCard, LoadingSpinner, StatusBadge } from '../components/UI';
 
 export default function DashboardPage() {
+  const { isAuthenticated } = useAuthStore();
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [recent, setRecent] = useState([]);
@@ -20,8 +21,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
-  }, [chartPeriod]);
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [chartPeriod, isAuthenticated]);
 
   const loadData = async () => {
     try {
@@ -34,11 +37,15 @@ export default function DashboardPage() {
       setChartData(chartRes.data);
       setRecent(recentRes.data);
     } catch (err) {
-      console.error('Failed to load dashboard:', err);
+      // Only log if it's not an authentication error (which is handled by interceptor)
+      if (err.response?.status !== 401) {
+        console.error('Failed to load dashboard:', err);
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
   if (loading) return <LoadingSpinner />;
 

@@ -80,43 +80,33 @@ async def get_revenue_chart_data(
     period: str = "daily",  # daily | weekly | monthly
     days: int = 30,
 ) -> list[RevenueChartData]:
-    """Get time-series revenue data for charts with fail-safe."""
+    """Get time-series revenue data for charts with fail-safe date truncation."""
     try:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         start_date = now - timedelta(days=days)
+        
+        # Use date_trunc for more robust grouping in PostgreSQL
         if period == "monthly":
-            stmt = (
-                select(
-                    func.to_char(Bill.created_at, "YYYY-MM").label("period"),
-                    func.coalesce(func.sum(Bill.total), 0).label("revenue"),
-                    func.count(Bill.id).label("count"),
-                )
-                .where(Bill.status == "paid", Bill.created_at >= start_date)
-                .group_by(func.to_char(Bill.created_at, "YYYY-MM"))
-                .order_by(func.to_char(Bill.created_at, "YYYY-MM"))
-            )
+            trunc_level = "month"
+            date_format = "YYYY-MM"
         elif period == "weekly":
-            stmt = (
-                select(
-                    func.to_char(Bill.created_at, "IYYY-IW").label("period"),
-                    func.coalesce(func.sum(Bill.total), 0).label("revenue"),
-                    func.count(Bill.id).label("count"),
-                )
-                .where(Bill.status == "paid", Bill.created_at >= start_date)
-                .group_by(func.to_char(Bill.created_at, "IYYY-IW"))
-                .order_by(func.to_char(Bill.created_at, "IYYY-IW"))
-            )
+            trunc_level = "week"
+            date_format = "IYYY-IW"
         else:
-            stmt = (
-                select(
-                    func.to_char(Bill.created_at, "YYYY-MM-DD").label("period"),
-                    func.coalesce(func.sum(Bill.total), 0).label("revenue"),
-                    func.count(Bill.id).label("count"),
-                )
-                .where(Bill.status == "paid", Bill.created_at >= start_date)
-                .group_by(func.to_char(Bill.created_at, "YYYY-MM-DD"))
-                .order_by(func.to_char(Bill.created_at, "YYYY-MM-DD"))
+            trunc_level = "day"
+            date_format = "YYYY-MM-DD"
+
+        stmt = (
+            select(
+                func.to_char(func.date_trunc(trunc_level, Bill.created_at), date_format).label("period"),
+                func.coalesce(func.sum(Bill.total), 0).label("revenue"),
+                func.count(Bill.id).label("count"),
             )
+            .where(func.lower(Bill.status) == "paid")
+            .where(Bill.created_at >= start_date)
+            .group_by(func.date_trunc(trunc_level, Bill.created_at))
+            .order_by(func.date_trunc(trunc_level, Bill.created_at))
+        )
 
         if tenant_id:
             stmt = stmt.where(Bill.tenant_id == tenant_id)
@@ -136,6 +126,7 @@ async def get_revenue_chart_data(
         from loguru import logger
         logger.error(f"Dashboard Chart Error: {e}")
         return []
+
 
 
 

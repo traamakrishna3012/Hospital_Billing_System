@@ -27,30 +27,39 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 — auto logout
+// Handle 401 — auto logout or refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      const authStore = useAuthStore.getState();
+    const originalRequest = error.config;
+    const authStore = useAuthStore.getState();
+
+    // If 401 and not already retrying
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
       if (authStore.refreshToken) {
         try {
           const res = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {
             refresh_token: authStore.refreshToken,
           });
           authStore.setTokens(res.data.access_token, res.data.refresh_token);
-          error.config.headers.Authorization = `Bearer ${res.data.access_token}`;
-          return api(error.config);
-        } catch {
+          originalRequest.headers.Authorization = `Bearer ${res.data.access_token}`;
+          return api(originalRequest);
+        } catch (refreshError) {
           authStore.logout();
+          // Fail silently on refresh failure to avoid console noise
+          return new Promise(() => {}); 
         }
       } else {
         authStore.logout();
+        return new Promise(() => {}); // Prevent further error propagation
       }
     }
     return Promise.reject(error);
   }
 );
+
 
 // ── Auth API ─────────────────────────────────────────────────
 

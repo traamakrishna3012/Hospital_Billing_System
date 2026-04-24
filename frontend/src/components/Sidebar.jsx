@@ -26,7 +26,9 @@ const superadminItems = [
   { to: '/super/dashboard', icon: LayoutDashboard, label: 'Platform Stats' },
   { to: '/super/tenants', icon: Building2, label: 'Manage Clinics' },
   { to: '/super/revenue', icon: TrendingUp, label: 'Revenue Analytics' },
+  { to: '/super/settings', icon: Settings, label: 'Platform Settings' },
 ];
+
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);

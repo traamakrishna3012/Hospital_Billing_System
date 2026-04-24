@@ -8,23 +8,29 @@ import { superadminAPI } from '../services/api';
 import { StatCard, LoadingSpinner } from '../components/UI';
 
 export default function SuperAdminDashboard() {
+  const { isAuthenticated } = useAuthStore();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated]);
 
   const loadData = async () => {
     try {
       const res = await superadminAPI.getStats();
       setStats(res.data);
     } catch (err) {
-      console.error('Failed to load platform stats:', err);
+      if (err.response?.status !== 401) {
+        console.error('Failed to load platform stats:', err);
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
   if (loading) return <LoadingSpinner />;
 

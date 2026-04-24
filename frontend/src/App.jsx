@@ -88,7 +88,9 @@ export default function App() {
           <Route path="super/dashboard" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
           <Route path="super/tenants" element={<SuperAdminRoute><SuperAdminTenantsPage /></SuperAdminRoute>} />
           <Route path="super/revenue" element={<SuperAdminRoute><SuperAdminRevenuePage /></SuperAdminRoute>} />
+          <Route path="super/settings" element={<SuperAdminRoute><SettingsPage /></SuperAdminRoute>} />
         </Route>
+
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
