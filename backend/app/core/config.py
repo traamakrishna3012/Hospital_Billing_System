@@ -106,6 +106,11 @@ class Settings(BaseSettings):
     DEFAULT_TAX_PERCENT: float = 18.0
     DEFAULT_CURRENCY: str = "INR"
 
+    # ── SuperAdmin ────────────────────────────────────────────
+    SUPERADMIN_EMAIL: str = "superadmin@hospitalbilling.com"
+    SUPERADMIN_PASSWORD: str
+
+
     @property
     def is_production(self) -> bool:
         return self.APP_ENV != "development"
