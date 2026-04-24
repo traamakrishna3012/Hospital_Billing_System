@@ -32,23 +32,28 @@ from app.schemas.schemas import (
 router = APIRouter(prefix="/tests", tags=["Tests & Services"])
 
 # ── Security Constants ────────────────────────────────────────
-MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_UPLOAD_SIZE = 2 * 1024 * 1024  # 2 MB
 MAX_ROW_COUNT = 1000
 ALLOWED_MIMES = {
     "text/csv",
     "text/plain",                   # some OS report CSV as text/plain
     "application/csv",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
-_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+ALLOWED_EXTENSIONS = {".csv", ".txt"}
 
 
-def _sanitize_cell(value):
-    """Neutralize spreadsheet formula injection in a cell value."""
-    if isinstance(value, str) and value.startswith(_INJECTION_PREFIXES):
-        return "'" + value
-    return value
+def sanitize_csv_field(value: str) -> str:
+    """Prevent CSV injection by stripping formula-triggering prefixes and HTML."""
+    if not isinstance(value, str):
+        return value
+    # Strip leading characters that trigger formula execution in spreadsheet apps
+    dangerous_prefixes = ('=', '+', '-', '@', '\t', '\r')
+    while value and value[0] in dangerous_prefixes:
+        value = value[1:]
+    # Strip HTML tags to prevent stored XSS
+    import re
+    value = re.sub(r'<[^>]+>', '', value)
+    return value.strip()
 
 
 def _sanitize_filename(raw: str) -> str:
@@ -64,6 +69,14 @@ async def bulk_upload_tests(
     current_user: CurrentUser,
     file: UploadFile = File(...)
 ):
+    from pathlib import Path
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file extension. Only {', '.join(ALLOWED_EXTENSIONS)} files are accepted.",
+        )
+
     safe_name = _sanitize_filename(file.filename)
     logger.info(f"Bulk upload started by user {current_user.id}: {safe_name}")
 
@@ -72,7 +85,7 @@ async def bulk_upload_tests(
     if len(contents) > MAX_UPLOAD_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File too large. Maximum allowed size is 5MB.",
+            detail="File too large. Maximum allowed size is 2MB.",
         )
 
     # ── V-04: Magic-byte MIME validation ──────────────────────
@@ -81,20 +94,17 @@ async def bulk_upload_tests(
         logger.warning(f"Rejected upload {safe_name}: detected MIME {detected_mime}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file type. Only CSV and Excel files are permitted.",
+            detail="Invalid file type. Only CSV and text files are permitted.",
         )
 
     # ── V-08: Robust parsing ─────────────────────────────────
     try:
-        if detected_mime in {"text/csv", "text/plain", "application/csv"}:
-            df = pd.read_csv(io.BytesIO(contents))
-        else:
-            df = pd.read_excel(io.BytesIO(contents))
+        df = pd.read_csv(io.BytesIO(contents))
     except Exception as e:
         logger.error(f"Bulk upload parse error for {safe_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not parse the uploaded file. Please ensure it is a valid CSV or Excel file.",
+            detail="Could not parse the uploaded file. Please ensure it is a valid CSV file.",
         )
 
     if df.empty:
@@ -112,7 +122,8 @@ async def bulk_upload_tests(
 
     # ── V-05: CSV injection sanitization ─────────────────────
     str_cols = df.select_dtypes(include=["object"]).columns
-    df[str_cols] = df[str_cols].map(_sanitize_cell)
+    df[str_cols] = df[str_cols].map(sanitize_csv_field)
+
 
     # Standardize columns
     df.columns = [str(c).strip().lower() for c in df.columns]
