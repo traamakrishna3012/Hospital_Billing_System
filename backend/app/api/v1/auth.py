@@ -184,22 +184,22 @@ async def login(
 
 
     # Set HttpOnly cookies — immune to XSS token theft
-    _is_secure = _settings.APP_ENV != "development"
+    _is_secure = _settings.APP_ENV != "development" or _settings.COOKIE_SECURE
     response.set_cookie(
-        key="access_token",
+        key=_settings.AUTH_TOKEN_KEY,
         value=access_token,
         httponly=True,
         secure=_is_secure,
-        samesite="lax",
+        samesite=_settings.COOKIE_SAMESITE,
         max_age=_settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
     response.set_cookie(
-        key="refresh_token",
+        key=_settings.REFRESH_TOKEN_KEY,
         value=refresh_token,
         httponly=True,
         secure=_is_secure,
-        samesite="lax",
+        samesite=_settings.COOKIE_SAMESITE,
         max_age=_settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         path="/api/v1/auth",  # Only sent to auth endpoints
     )
@@ -401,27 +401,5 @@ async def change_password(
     return {"message": "Password updated successfully"}
 
 
-
-@router.post("/change-password", summary="Change current user password")
-async def change_password(
-    data: PasswordChangeRequest,
-    current_user: CurrentUser,
-    db: DBSession
-):
-    """Change the authenticated user's password."""
-    from app.core.security import verify_password, hash_password
-    
-    # 1. Verify current password
-    if not verify_password(data.current_password, current_user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Incorrect current password"
-        )
-    
-    # 2. Update password
-    current_user.password_hash = hash_password(data.new_password)
-    db.add(current_user)
-    await db.commit()
-    
     return {"message": "Password updated successfully"}
 

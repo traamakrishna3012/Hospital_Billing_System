@@ -16,12 +16,18 @@ from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.gzip import GZipMiddleware
+import sys
 from loguru import logger
 
 from app.core.config import get_settings
 from app.core.database import init_db
 
 settings = get_settings()
+
+# Configure loguru to use stdout (to avoid red bars in Railway/Render)
+logger.remove()
+logger.add(sys.stdout, format="{time} | {level} | {message}", level="INFO")
 
 
 @asynccontextmanager
@@ -202,11 +208,14 @@ async def lifespan(app: FastAPI):
 
 # ── FastAPI App ───────────────────────────────────────────────
 
+from fastapi.responses import ORJSONResponse
+
 app = FastAPI(
     title="Hospital Billing API",
     description="Multi-tenant hospital/clinic billing system with patient, doctor, test, and billing management.",
     version="1.0.0",
     lifespan=lifespan,
+    default_response_class=ORJSONResponse,
     docs_url="/docs" if not settings.is_production else None,
     redoc_url="/redoc" if not settings.is_production else None,
     openapi_url="/openapi.json" if not settings.is_production else None,
@@ -261,6 +270,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # ── Global Exception Handlers ────────────────────────────────
 
@@ -343,11 +353,18 @@ class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
             response = await super().get_response(path, scope)
-            # Add no-cache to index.html to ensure users always get the latest build
+            
+            # ── Cache Headers for Performance ────────────────────────
             if path == "" or path == "index.html" or response.status_code == 404:
+                # NEVER cache index.html (always check for new version)
                 response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
                 response.headers["Pragma"] = "no-cache"
                 response.headers["Expires"] = "0"
+            else:
+                # LONG cache for assets (hashed by Vite, so safe to cache forever)
+                # 31536000 seconds = 1 year
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            
             return response
         except (HTTPException, Exception) as e:
             if scope["path"].startswith("/api"):
@@ -356,6 +373,7 @@ class SPAStaticFiles(StaticFiles):
             index_path = os.path.join(STATIC_DIR, "index.html")
             if os.path.exists(index_path):
                 response = FileResponse(index_path)
+                # NEVER cache index.html fallback
                 response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
                 return response
             raise e
