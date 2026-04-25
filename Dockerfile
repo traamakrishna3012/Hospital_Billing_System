@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     libmagic1 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend requirements and install
@@ -46,9 +47,10 @@ RUN chown -R appuser:appuser /app
 # Switch to the non-root user
 USER appuser
 
-# Expose port
+# Expose port (Railway/Render will override this, but it's good practice)
 EXPOSE 8000
 
-# Start Uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start Uvicorn with dynamic port support for Railway/Render
+# We use a shell to allow environment variable expansion for $PORT
+CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips '*'"
 

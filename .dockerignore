@@ -1,17 +1,35 @@
-# Ignore local build artifacts and environments
-node_modules
+# Build artifacts
 dist
+static
+build
+
+# Dependencies
+node_modules
+frontend/node_modules
+backend/venv
+backend/.venv
 venv
 .venv
 __pycache__
 *.pyc
-*.pyo
-*.pyd
+
+# Local config & sensitive data
 .env
+.env.local
 .git
 .github
 .vscode
-*.docx
-*.pdf
+
+# Data & Logs
 backend/uploads/*
 !backend/uploads/.gitkeep
+*.log
+postgres_data
+
+# Documentation & Others
+*.docx
+*.pdf
+*.md
+vapt_*.txt
+seed_admin.bat
+push.bat
