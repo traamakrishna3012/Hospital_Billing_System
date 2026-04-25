@@ -96,16 +96,19 @@ async def get_revenue_chart_data(
             trunc_level = "day"
             date_format = "YYYY-MM-DD"
 
+        # Use a shared expression for truncation to avoid Postgres grouping errors
+        trunc_expr = func.date_trunc(trunc_level, Bill.created_at)
+        
         stmt = (
             select(
-                func.to_char(func.date_trunc(trunc_level, Bill.created_at), date_format).label("period"),
+                func.to_char(trunc_expr, date_format).label("period"),
                 func.coalesce(func.sum(Bill.total), 0).label("revenue"),
                 func.count(Bill.id).label("count"),
             )
             .where(func.lower(Bill.status) == "paid")
             .where(Bill.created_at >= start_date)
-            .group_by(func.date_trunc(trunc_level, Bill.created_at))
-            .order_by(func.date_trunc(trunc_level, Bill.created_at))
+            .group_by(trunc_expr)
+            .order_by(trunc_expr)
         )
 
         if tenant_id:
