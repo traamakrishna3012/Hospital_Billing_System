@@ -61,9 +61,9 @@ class Settings(BaseSettings):
         # Access APP_ENV from the data if available
         is_prod = info.data.get("APP_ENV", "development") == "production"
         
-        if is_prod and (len(v) < 64 or v.lower().strip() in _WEAK_DEFAULTS):
+        if is_prod and (len(v) < 32 or v.lower().strip() in _WEAK_DEFAULTS):
             raise ValueError(
-                "CRITICAL: JWT_SECRET_KEY must be at least 64 characters and must not use default values in PRODUCTION."
+                "CRITICAL: JWT_SECRET_KEY must be at least 32 characters and must not use default values in PRODUCTION."
             )
         return v
 
