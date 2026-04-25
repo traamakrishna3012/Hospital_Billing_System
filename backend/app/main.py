@@ -208,11 +208,14 @@ async def lifespan(app: FastAPI):
 
 # ── FastAPI App ───────────────────────────────────────────────
 
+from fastapi.responses import ORJSONResponse
+
 app = FastAPI(
     title="Hospital Billing API",
     description="Multi-tenant hospital/clinic billing system with patient, doctor, test, and billing management.",
     version="1.0.0",
     lifespan=lifespan,
+    default_response_class=ORJSONResponse,
     docs_url="/docs" if not settings.is_production else None,
     redoc_url="/redoc" if not settings.is_production else None,
     openapi_url="/openapi.json" if not settings.is_production else None,
