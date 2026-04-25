@@ -32,11 +32,8 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-hospital_billing}
-      - APP_ENV=production
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL:-superadmin@hospitalbilling.com}
-      - SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD}
-      - CORS_ORIGINS=["http://localhost:8000", "http://127.0.0.1:8000"]
+    env_file:
+      - .env
     volumes:
       - ./uploads:/app/uploads
 
