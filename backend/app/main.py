@@ -16,12 +16,18 @@ from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.gzip import GZipMiddleware
+import sys
 from loguru import logger
 
 from app.core.config import get_settings
 from app.core.database import init_db
 
 settings = get_settings()
+
+# Configure loguru to use stdout (to avoid red bars in Railway/Render)
+logger.remove()
+logger.add(sys.stdout, format="{time} | {level} | {message}", level="INFO")
 
 
 @asynccontextmanager
@@ -261,6 +267,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # ── Global Exception Handlers ────────────────────────────────
 

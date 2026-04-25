@@ -110,6 +110,12 @@ class Settings(BaseSettings):
     SUPERADMIN_EMAIL: str = "superadmin@hospitalbilling.com"
     SUPERADMIN_PASSWORD: str = "Admin@123"
 
+    # ── VAPT / Hardening ──────────────────────────────────────
+    COOKIE_SECURE: bool = True
+    COOKIE_SAMESITE: str = "lax"
+    AUTH_TOKEN_KEY: str = "access_token"
+    REFRESH_TOKEN_KEY: str = "refresh_token"
+
 
     @property
     def is_production(self) -> bool:
