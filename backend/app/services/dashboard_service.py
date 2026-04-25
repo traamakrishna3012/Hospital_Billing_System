@@ -44,12 +44,14 @@ async def get_dashboard_stats(db: AsyncSession, tenant_id: UUID | None) -> Dashb
             patient_stmt = select(func.count(Patient.id)).where(Patient.tenant_id == tenant_id)
             doctor_stmt = select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant_id, Doctor.is_active == True)
 
-        # Combine into one mega query result
-        res_bills = await db.execute(bill_stmt)
+        # Execute queries in parallel for speed
+        import asyncio
+        res_bills, res_patients, res_doctors = await asyncio.gather(
+            db.execute(bill_stmt),
+            db.execute(patient_stmt),
+            db.execute(doctor_stmt)
+        )
         row_bills = res_bills.mappings().one()
-        
-        res_patients = await db.execute(patient_stmt)
-        res_doctors = await db.execute(doctor_stmt)
 
         return DashboardStats(
             total_revenue=float(row_bills["total_revenue"] or 0),

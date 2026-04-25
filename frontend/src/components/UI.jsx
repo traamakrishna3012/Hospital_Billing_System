@@ -101,10 +101,28 @@ export function StatusBadge({ status }) {
   );
 }
 
-export function LoadingSpinner() {
+export function LoadingSpinner({ fullPage = false }) {
+  const content = (
+    <div className="flex flex-col items-center justify-center gap-3">
+      <div className="relative w-12 h-12">
+        <div className="absolute inset-0 border-4 border-primary-100 rounded-full" />
+        <div className="absolute inset-0 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+      <p className="text-xs font-medium text-surface-400 animate-pulse">Loading data...</p>
+    </div>
+  );
+
+  if (fullPage) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
+        {content}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-center py-12">
-      <div className="w-8 h-8 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+    <div className="flex items-center justify-center py-20">
+      {content}
     </div>
   );
 }

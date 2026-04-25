@@ -1,5 +1,10 @@
 import axios from 'axios';
+import nProgress from 'nprogress';
+import 'nprogress/nprogress.css';
 import { useAuthStore } from '../store/authStore';
+
+// NProgress Configuration
+nProgress.configure({ showSpinner: false, speed: 400, minimum: 0.2 });
 
 const getApiBaseUrl = () => {
   // Always use the same origin in production to avoid CORS and stale URL issues
@@ -18,10 +23,19 @@ const api = axios.create({
   withCredentials: true, // Crucial for sending HttpOnly cookies
 });
 
-// Handle 401 — auto refresh or logout
+// Handle global loading progress and 401 — auto refresh or logout
+api.interceptors.request.use((config) => {
+  nProgress.start();
+  return config;
+});
+
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    nProgress.done();
+    return response;
+  },
   async (error) => {
+    nProgress.done();
     const originalRequest = error.config;
     const authStore = useAuthStore.getState();
 
