@@ -343,11 +343,18 @@ class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
             response = await super().get_response(path, scope)
-            # Add no-cache to index.html to ensure users always get the latest build
+            
+            # ── Cache Headers for Performance ────────────────────────
             if path == "" or path == "index.html" or response.status_code == 404:
+                # NEVER cache index.html (always check for new version)
                 response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
                 response.headers["Pragma"] = "no-cache"
                 response.headers["Expires"] = "0"
+            else:
+                # LONG cache for assets (hashed by Vite, so safe to cache forever)
+                # 31536000 seconds = 1 year
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            
             return response
         except (HTTPException, Exception) as e:
             if scope["path"].startswith("/api"):
@@ -356,6 +363,7 @@ class SPAStaticFiles(StaticFiles):
             index_path = os.path.join(STATIC_DIR, "index.html")
             if os.path.exists(index_path):
                 response = FileResponse(index_path)
+                # NEVER cache index.html fallback
                 response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
                 return response
             raise e

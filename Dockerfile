@@ -50,7 +50,8 @@ USER appuser
 # Expose port (Railway/Render will override this, but it's good practice)
 EXPOSE 8000
 
-# Start Uvicorn with dynamic port support for Railway/Render
-# We use a shell to allow environment variable expansion for $PORT
-CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips '*'"
+# Start with Gunicorn for high-performance parallel processing
+# -w 4: Run 4 worker processes (adjust based on your Railway plan)
+# -k uvicorn.workers.UvicornWorker: Use the ultra-fast Uvicorn worker
+CMD sh -c "gunicorn -w ${WEB_WORKERS:-4} -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8000} --timeout 120 --access-logfile - app.main:app"
 
