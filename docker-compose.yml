@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: hospital_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-hospital_billing}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hospital_app
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-hospital_billing}
+      - APP_ENV=production
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL:-superadmin@hospitalbilling.com}
+      - SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD}
+      - CORS_ORIGINS=["http://localhost:8000", "http://127.0.0.1:8000"]
+    volumes:
+      - ./uploads:/app/uploads
+
+volumes:
+  postgres_data:
