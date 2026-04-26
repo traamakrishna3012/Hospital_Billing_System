@@ -74,14 +74,23 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | List[str]) -> List[str]:
+        default = ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5173"]
         if not v:
-            return ["http://localhost:8000"]
-        if isinstance(v, str):
+            origins = default
+        elif isinstance(v, str):
             try:
-                return json.loads(v)
+                origins = json.loads(v)
             except json.JSONDecodeError:
-                return [origin.strip() for origin in v.split(",")]
-        return v
+                origins = [origin.strip() for origin in v.split(",")]
+        else:
+            origins = v
+            
+        # Add Railway default domain if we are in production
+        railway_static_url = os.getenv("RAILWAY_STATIC_URL")
+        if railway_static_url:
+            origins.append(f"https://{railway_static_url}")
+            
+        return origins
 
     # ── Server ────────────────────────────────────────────────
     APP_HOST: str = "0.0.0.0"

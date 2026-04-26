@@ -52,7 +52,7 @@ USER appuser
 EXPOSE 8000
 
 # Start with Gunicorn for high-performance parallel processing
-# -w 4: Run 4 worker processes (adjust based on your Railway plan)
+# -w 2: Run 2 worker processes (optimal for Railway free/starter tiers)
 # -k uvicorn.workers.UvicornWorker: Use the ultra-fast Uvicorn worker
-CMD ["sh", "-c", "python app/prestart.py && gunicorn -w ${WEB_WORKERS:-4} -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8000} --timeout 120 --access-logfile - app.main:app"]
+CMD ["sh", "-c", "python app/prestart.py && gunicorn -w ${WEB_WORKERS:-2} -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8000} --timeout 120 --access-logfile - app.main:app"]
 
