@@ -5,6 +5,7 @@ Uses Pydantic Settings for type-safe environment variable parsing.
 
 from __future__ import annotations
 
+import os
 import json
 from functools import lru_cache
 from pathlib import Path
