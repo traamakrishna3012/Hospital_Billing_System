@@ -245,7 +245,9 @@ class SPAStaticFiles(StaticFiles):
             
             return response
         except (HTTPException, Exception) as e:
-            if scope["path"].startswith("/api"):
+            # If it's an API call or a file that SHOULD exist (has extension), don't fallback to index.html
+            path_str = scope["path"]
+            if path_str.startswith("/api") or "." in path_str.split("/")[-1]:
                 raise e
             
             index_path = os.path.join(STATIC_DIR, "index.html")
