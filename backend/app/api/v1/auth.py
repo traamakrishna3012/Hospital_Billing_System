@@ -206,7 +206,8 @@ async def login(
 
     return response
 
-async def refresh_token(request: Request, db: DBSession, data: RefreshRequest = Body(None)):
+@router.post("/refresh", summary="Refresh access token")
+async def refresh_token(request: Request, db: AsyncSession = Depends(get_async_session), data: RefreshRequest = Body(None)):
     """Get a new access token using a refresh token from body or cookie."""
     rt = data.refresh_token if data and data.refresh_token else request.cookies.get("refresh_token")
     
