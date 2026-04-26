@@ -210,6 +210,14 @@ app.include_router(reports_router, prefix=API_PREFIX)
 app.include_router(superadmin_router, prefix=API_PREFIX)
 
 
+# ── SPA Frontend Serving ─────────────────────────────────────
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+# Path to the static files directory (populated during Docker build)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
 # ── PWA & Static Assets ───────────────────────────────────────
 # Explicitly serve these to avoid SPA redirection issues on mobile
 @app.get("/manifest.json", include_in_schema=False)
@@ -230,14 +238,6 @@ async def get_sw():
 async def get_favicon():
     return JSONResponse(status_code=204, content=None) # No favicon for now
 
-
-# ── SPA Frontend Serving ─────────────────────────────────────
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-
-# Path to the static files directory (populated during Docker build)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 class SPAStaticFiles(StaticFiles):
     """Custom StaticFiles that serves index.html for 404s (SPA routing)."""
