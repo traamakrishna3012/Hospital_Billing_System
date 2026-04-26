@@ -121,24 +121,34 @@ app.add_middleware(
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
+    # Skip security headers for static assets if needed, but for now apply to all
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    # Mobile-friendly CSP: Allow inline scripts and evals for Vite/React
-    response.headers["Content-Security-Policy"] = (
-        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
-        "script-src * 'unsafe-inline' 'unsafe-eval'; "
-        "connect-src *; "
-        "style-src * 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src * data: https://fonts.gstatic.com; "
-        "img-src * data: blob:; "
+    
+    # Secure but permissive CSP for React + Vite + PWA
+    # We use 'self' and also allow the specific origin to be safe
+    origin = str(request.base_url).rstrip('/')
+    csp = (
+        f"default-src 'self' {origin} https://fonts.googleapis.com https://fonts.gstatic.com; "
+        f"script-src 'self' 'unsafe-inline' 'unsafe-eval' {origin}; "
+        f"connect-src 'self' {origin} *; "
+        f"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        f"font-src 'self' data: https://fonts.gstatic.com; "
+        f"img-src 'self' data: blob: *; "
         "frame-ancestors 'none'; "
         "base-uri 'self'; "
         "form-action 'self';"
     )
+    response.headers["Content-Security-Policy"] = csp
     response.headers["Server"] = "Hidden"
+    
+    # Log requests in production for debugging network errors
+    if settings.is_production:
+        logger.info(f"Request: {request.method} {request.url.path} - Status: {response.status_code}")
+        
     return response
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
