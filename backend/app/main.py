@@ -35,11 +35,21 @@ async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     logger.info("Starting Hospital Billing System...")
 
-    # Ensure upload directories exist
-    settings.upload_path  # triggers directory creation
-
-    # Note: Database initialization and manual migrations are now handled by app/prestart.py
-    # to avoid race conditions when running with multiple Gunicorn workers.
+    # Safe Migration Execution (using a simple file lock to prevent multi-worker race)
+    lock_file = "/tmp/migration.lock"
+    if not os.path.exists(lock_file):
+        try:
+            # Create lock
+            with open(lock_file, "w") as f:
+                f.write("locked")
+            
+            from app.prestart import run_migrations
+            logger.info("Running database migrations in background...")
+            # We run it in a task so it doesn't block worker boot
+            import asyncio
+            asyncio.create_task(run_migrations())
+        except Exception as e:
+            logger.warning(f"Migration trigger failed (likely already running): {e}")
 
     yield
     logger.info("Hospital Billing System shutting down...")
