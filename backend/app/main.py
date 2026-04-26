@@ -119,26 +119,27 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-# @app.middleware("http")
-# async def add_security_headers(request: Request, call_next):
-#     response = await call_next(request)
-#     response.headers["X-Content-Type-Options"] = "nosniff"
-#     response.headers["X-Frame-Options"] = "DENY"
-#     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-#     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-#     response.headers["Content-Security-Policy"] = (
-#         "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
-#         "script-src * 'unsafe-inline' 'unsafe-eval'; "
-#         "connect-src *; "
-#         "style-src * 'unsafe-inline'; "
-#         "img-src * data: blob:; "
-#         "font-src * data:; "
-#         "frame-ancestors 'none'; "
-#         "base-uri 'self'; "
-#         "form-action 'self';"
-#     )
-#     response.headers["Server"] = "Hidden"
-#     return response
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # Mobile-friendly CSP: Allow inline scripts and evals for Vite/React
+    response.headers["Content-Security-Policy"] = (
+        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+        "script-src * 'unsafe-inline' 'unsafe-eval'; "
+        "connect-src *; "
+        "style-src * 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src * data: https://fonts.gstatic.com; "
+        "img-src * data: blob:; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self';"
+    )
+    response.headers["Server"] = "Hidden"
+    return response
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
