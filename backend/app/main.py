@@ -210,6 +210,27 @@ app.include_router(reports_router, prefix=API_PREFIX)
 app.include_router(superadmin_router, prefix=API_PREFIX)
 
 
+# ── PWA & Static Assets ───────────────────────────────────────
+# Explicitly serve these to avoid SPA redirection issues on mobile
+@app.get("/manifest.json", include_in_schema=False)
+async def get_manifest():
+    path = os.path.join(STATIC_DIR, "manifest.json")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="application/json")
+    return JSONResponse(status_code=404, content={"detail": "manifest.json not found"})
+
+@app.get("/sw.js", include_in_schema=False)
+async def get_sw():
+    path = os.path.join(STATIC_DIR, "sw.js")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="application/javascript")
+    return JSONResponse(status_code=404, content={"detail": "sw.js not found"})
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def get_favicon():
+    return JSONResponse(status_code=204, content=None) # No favicon for now
+
+
 # ── SPA Frontend Serving ─────────────────────────────────────
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
