@@ -18,10 +18,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Create a non-root user
-RUN adduser --disabled-password --gecos "" appuser
+# Create a non-root user and set up working directory
+RUN adduser --disabled-password --gecos "" appuser && \
+    mkdir -p /app/static /app/uploads && \
+    chown -R appuser:appuser /app
 
-# Set working directory
 WORKDIR /app
 
 # Install system dependencies
@@ -32,27 +33,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy backend requirements and install
-COPY backend/requirements.txt ./
+# Copy requirements first to leverage cache
+COPY --chown=appuser:appuser backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source
-COPY backend/ ./
+# Copy backend source with correct ownership
+COPY --chown=appuser:appuser backend/ ./
 
 # Copy built frontend from Stage 1
-COPY --from=frontend-builder /app/frontend/dist ./static
-
-# Change ownership
-RUN chown -R appuser:appuser /app
+COPY --from=frontend-builder --chown=appuser:appuser /app/frontend/dist ./static
 
 # Switch to the non-root user
 USER appuser
 
-# Expose port (Railway/Render will override this, but it's good practice)
+# Expose port
 EXPOSE 8000
 
-# Start with Gunicorn for high-performance parallel processing
-# -w 2: Run 2 worker processes (optimal for Railway free/starter tiers)
-# -k uvicorn.workers.UvicornWorker: Use the ultra-fast Uvicorn worker
+# Start with Gunicorn
 CMD ["sh", "-c", "python app/prestart.py && gunicorn -w ${WEB_WORKERS:-2} -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8000} --timeout 120 --access-logfile - app.main:app"]
 
