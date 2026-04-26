@@ -10,6 +10,9 @@ sys.path.append(os.getcwd())
 
 from app.core.database import init_db, async_session_factory
 from app.core.config import get_settings
+from app.models.user import User
+from app.core.security import hash_password
+from sqlalchemy import select, text
 
 settings = get_settings()
 
@@ -60,8 +63,26 @@ async def run_migrations():
             
             await db.commit()
             logger.info("All manual migrations completed successfully.")
+
+            # 3. Seed SuperAdmin
+            res = await db.execute(select(User).where(User.email == settings.SUPERADMIN_EMAIL))
+            if not res.scalar_one_or_none():
+                db.add(User(
+                    email=settings.SUPERADMIN_EMAIL,
+                    password_hash=hash_password(settings.SUPERADMIN_PASSWORD),
+                    full_name="System Super Admin",
+                    role="superadmin",
+                    tenant_id=None,
+                    is_active=True,
+                    is_approved=True
+                ))
+                await db.commit()
+                logger.info(f"SuperAdmin seeded: {settings.SUPERADMIN_EMAIL}")
+            else:
+                logger.info("SuperAdmin already exists.")
+
         except Exception as e:
-            logger.warning(f"Migration step skipped or failed: {e}")
+            logger.warning(f"Migration/Seeding step failed: {e}")
             await db.rollback()
 
 async def main():

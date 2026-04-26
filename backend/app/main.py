@@ -44,28 +44,6 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Hospital Billing System shutting down...")
 
-            # 3. Seed SuperAdmin
-            result = await db.execute(
-                select(User).where(User.email == settings.SUPERADMIN_EMAIL)
-            )
-            if not result.scalar_one_or_none():
-                db.add(User(
-                    email=settings.SUPERADMIN_EMAIL,
-                    password_hash=hash_password(settings.SUPERADMIN_PASSWORD),
-                    full_name="System Super Admin",
-                    role="superadmin",
-                    tenant_id=None,
-                    is_active=True,
-                    is_approved=True
-                ))
-                await db.commit()
-                logger.info("Successfully seeded superadmin from configuration.")
-
-
-
-    except Exception as e:
-        logger.error(f"Failed to seed or migrate during startup: {e}")
-
     # Log static directory for debugging
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     static_dir = os.path.join(base_dir, "static")
