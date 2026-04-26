@@ -127,12 +127,12 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com data:; "
-        "img-src 'self' data: blob:; "
-        "connect-src 'self' *; "
+        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+        "script-src * 'unsafe-inline' 'unsafe-eval'; "
+        "connect-src *; "
+        "style-src * 'unsafe-inline'; "
+        "img-src * data: blob:; "
+        "font-src * data:; "
         "frame-ancestors 'none'; "
         "base-uri 'self'; "
         "form-action 'self';"
@@ -248,8 +248,8 @@ async def serve_spa_fallback(full_path: str):
     Catch-all route to serve index.html for SPA routing.
     This replaces app.mount("/") to provide more control.
     """
-    # 1. Ignore API calls
-    if full_path.startswith("api/"):
+    # 1. Ignore API calls and manifest/sw files to prevent redirect loops
+    if full_path.startswith("api/") or full_path.endswith(".json") or full_path.endswith(".js"):
         return JSONResponse(status_code=404, content={"detail": "Not found"})
     
     # 2. Check if it's a direct file in static (like images or other assets)
