@@ -35,113 +35,14 @@ async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     logger.info("Starting Hospital Billing System...")
 
-    # ── Database Reset Logic ─────────────────────────────────────
-    _reset_flag = os.getenv("RESET_DATABASE_ON_STARTUP", "false").lower()
-    _env = os.getenv("APP_ENV", "production").lower()
-    
-    if _reset_flag == "true":
-        if _env in ("development", "testing"):
-            logger.warning("RESET_DATABASE_ON_STARTUP is TRUE. Wiping all tables...")
-            try:
-                from sqlalchemy import text
-                from app.core.database import async_session_factory
-                async with async_session_factory() as db:
-                    await db.execute(text("TRUNCATE TABLE token_blocklist, bills, medical_tests, medical_test_categories, patients, doctors, users, tenants CASCADE"))
-                    await db.commit()
-                    logger.info("Database wiped successfully.")
-            except Exception as e:
-                logger.error(f"Failed to wipe database: {e}")
-        else:
-            logger.error(f"RESET_DATABASE_ON_STARTUP=true is BLOCKED in environment '{_env}'. Ignoring to protect production data.")
-
-
-    # Create tables (use Alembic in production)
-    try:
-        await init_db()
-        logger.info("Database initialized")
-    except Exception as e:
-        logger.error(f"Critical: Database initialization failed: {e}")
-        # We don't exit here because we want the app to start and serve a /health check
-        # that shows the error, helping the user diagnose the problem.
-
     # Ensure upload directories exist
     settings.upload_path  # triggers directory creation
 
-    # Seed SuperAdmin if not exists
-    try:
-        from sqlalchemy import select, text
-        from app.core.database import async_session_factory
-        from app.models.user import User
-        from app.core.security import hash_password
-        
-        async with async_session_factory() as db:
-            # 1. Manual Migration - Users: tenant_id nullable, is_approved
-            try:
-                await db.execute(text("ALTER TABLE users ALTER COLUMN tenant_id DROP NOT NULL"))
-                await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE"))
-                await db.commit()
-                logger.info("Migration: users updated (tenant_id nullable, is_approved added)")
-            except Exception as e:
-                await db.rollback()
-                logger.warning(f"Migration (users) skipped: {e}")
+    # Note: Database initialization and manual migrations are now handled by app/prestart.py
+    # to avoid race conditions when running with multiple Gunicorn workers.
 
-            # 2. Manual Migration - Tenants: is_approved, biller_header, modules
-            try:
-                await db.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE"))
-                await db.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS biller_header TEXT"))
-                await db.execute(text('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS modules JSON DEFAULT \'{"patients": true, "doctors": true, "tests": true, "billing": true, "reports": true, "staff": true}\'::json'))
-                await db.commit()
-                logger.info("Migration: tenants table updated with is_approved, biller_header, and modules")
-            except Exception as e:
-                await db.rollback()
-                logger.warning(f"Migration (tenants table) skipped: {e}")
-
-            # 3. Manual Migration - BillItems: code column
-            try:
-                await db.execute(text("ALTER TABLE bill_items ADD COLUMN IF NOT EXISTS code VARCHAR(50)"))
-                await db.commit()
-                logger.info("Migration: bill_items.code column added")
-            except Exception as e:
-                await db.rollback()
-                logger.warning(f"Migration (bill_items.code) skipped: {e}")
-
-            # 4. Manual Migration - Users: modules JSONB column
-            try:
-                await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS modules JSONB"))
-                await db.commit()
-                logger.info("Migration: users.modules column added")
-            except Exception as e:
-                await db.rollback()
-                logger.warning(f"Migration (users.modules) skipped: {e}")
-
-            # 5. Manual Migration - Tenants: logo_url to TEXT
-            try:
-                await db.execute(text("ALTER TABLE tenants ALTER COLUMN logo_url TYPE TEXT"))
-                await db.commit()
-                logger.info("Migration: tenants.logo_url changed to TEXT")
-            except Exception as e:
-                await db.rollback()
-                logger.warning(f"Migration (tenants.logo_url) skipped: {e}")
-
-            # 6. Manual Migration - Users: Auto-approve existing staff/doctors
-            # Only users who are ALREADY part of a tenant and are not the primary admin
-            # should be auto-approved if they are currently stuck.
-            try:
-                await db.execute(text("UPDATE users SET is_approved = true WHERE tenant_id IS NOT NULL AND role IN ('staff', 'doctor') AND is_approved = false"))
-                await db.commit()
-                logger.info("Migration: existing staff users auto-approved")
-            except Exception as e:
-                await db.rollback()
-                logger.warning(f"Migration (staff auto-approval) skipped: {e}")
-
-            # 7. Manual Migration - SuperAdmin: Always approve
-            try:
-                await db.execute(text("UPDATE users SET is_approved = true WHERE role = 'superadmin'"))
-                await db.commit()
-                logger.info("Migration: superadmins auto-approved")
-            except Exception as e:
-                await db.rollback()
-                logger.warning(f"Migration (superadmin approval) skipped: {e}")
+    yield
+    logger.info("Hospital Billing System shutting down...")
 
             # 3. Seed SuperAdmin
             result = await db.execute(
