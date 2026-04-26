@@ -64,9 +64,11 @@ async def run_migrations():
             await db.commit()
             logger.info("All manual migrations completed successfully.")
 
-            # 3. Seed SuperAdmin
+            # 3. Seed/Sync SuperAdmin
             res = await db.execute(select(User).where(User.email == settings.SUPERADMIN_EMAIL))
-            if not res.scalar_one_or_none():
+            existing_user = res.scalar_one_or_none()
+            
+            if not existing_user:
                 db.add(User(
                     email=settings.SUPERADMIN_EMAIL,
                     password_hash=hash_password(settings.SUPERADMIN_PASSWORD),
@@ -77,9 +79,14 @@ async def run_migrations():
                     is_approved=True
                 ))
                 await db.commit()
-                logger.info(f"SuperAdmin seeded: {settings.SUPERADMIN_EMAIL}")
+                logger.info(f"SuperAdmin created: {settings.SUPERADMIN_EMAIL}")
             else:
-                logger.info("SuperAdmin already exists.")
+                # Sync password if changed in ENV
+                existing_user.password_hash = hash_password(settings.SUPERADMIN_PASSWORD)
+                existing_user.is_approved = True
+                existing_user.is_active = True
+                await db.commit()
+                logger.info(f"SuperAdmin credentials synchronized from ENV: {settings.SUPERADMIN_EMAIL}")
 
         except Exception as e:
             logger.warning(f"Migration/Seeding step failed: {e}")
