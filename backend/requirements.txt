@@ -4,7 +4,7 @@ uvicorn[standard]==0.34.0
 gunicorn==23.0.0
 uvloop==0.21.0
 httptools==0.6.4
-orjson==3.10.15
+orjson==3.11.6
 python-multipart==0.0.26
 
 # Database
