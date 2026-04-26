@@ -1,6 +1,6 @@
 # Unified Multi-Stage Dockerfile for Hospital Billing System
 # --- Stage 1: Build Frontend ---
-# Rebuild triggered at: 2026-04-26T18:50:00Z
+# Force Rebuild ID: BUILD_2026_04_26_V2
 FROM node:18-slim AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
