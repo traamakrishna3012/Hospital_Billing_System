@@ -102,7 +102,6 @@ logger.info(f"Docs enabled: {not settings.is_production}")
 
 # ── Middleware ────────────────────────────────────────────────
 
-from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.core.limiter import limiter
@@ -120,34 +119,27 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com data:; "
+        "img-src 'self' data: blob:; "
+        "connect-src 'self' *; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self';"
+    )
+    response.headers["Server"] = "Hidden"
+    return response
 
-# V-09: Security headers — class-based middleware
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com data:; "
-            "img-src 'self' data: blob:; "
-            "connect-src 'self' *; "
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self';"
-        )
-
-
-        response.headers["Server"] = "Hidden"
-        return response
-
-
-app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # ── Global Exception Handlers ────────────────────────────────
@@ -229,26 +221,14 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 class SPAStaticFiles(StaticFiles):
     """Custom StaticFiles that serves index.html for 404s (SPA routing)."""
     async def get_response(self, path: str, scope):
-        try:
-            response = await super().get_response(path, scope)
-            
-            # ── Cache Headers for Performance ────────────────────────
-            if path == "" or path == "index.html" or response.status_code == 404:
-                # NEVER cache index.html (always check for new version)
-                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-                response.headers["Pragma"] = "no-cache"
-                response.headers["Expires"] = "0"
-            else:
-                # LONG cache for assets (hashed by Vite, so safe to cache forever)
-                # 31536000 seconds = 1 year
-                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-            
-            return response
-        except (HTTPException, Exception) as e:
-            # If it's an API call or a file that SHOULD exist (has extension), don't fallback to index.html
+        response = await super().get_response(path, scope)
+        
+        # If it's a 404 for a non-file route, serve index.html
+        if response.status_code == 404:
             path_str = scope["path"]
+            # If it's an API call or a file that SHOULD exist (has extension), don't fallback to index.html
             if path_str.startswith("/api") or "." in path_str.split("/")[-1]:
-                raise e
+                return response
             
             index_path = os.path.join(STATIC_DIR, "index.html")
             if os.path.exists(index_path):
@@ -256,7 +236,17 @@ class SPAStaticFiles(StaticFiles):
                 # NEVER cache index.html fallback
                 response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
                 return response
-            raise e
+        
+        # ── Cache Headers for Performance ────────────────────────
+        if path == "" or path == "index.html":
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        else:
+            # LONG cache for assets (hashed by Vite, so safe to cache forever)
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        
+        return response
 
 
 # Mount the SPA handler at root
