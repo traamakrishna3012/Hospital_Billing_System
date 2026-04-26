@@ -74,9 +74,9 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | List[str]) -> List[str]:
-        default = ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5173"]
+        default_origins = ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5173"]
         if not v:
-            origins = default
+            origins = default_origins
         elif isinstance(v, str):
             try:
                 origins = json.loads(v)
