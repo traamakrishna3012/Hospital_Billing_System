@@ -85,20 +85,22 @@ export default function PatientsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-surface-800">Patients</h1>
-          <p className="text-surface-400 mt-1">{total} total records</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-surface-800">Patients</h1>
+          <p className="text-surface-400 text-sm mt-1">{total} total records</p>
         </div>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+        <button onClick={openCreate} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
           <Plus className="w-4 h-4" /> Add Patient
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search by name or phone..." />
-        <select value={gender} onChange={(e) => setGender(e.target.value)} className="input-field w-40">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+        <div className="flex-1">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search by name or phone..." className="w-full" />
+        </div>
+        <select value={gender} onChange={(e) => setGender(e.target.value)} className="input-field sm:w-40">
           <option value="">All Genders</option>
           <option value="male">Male</option>
           <option value="female">Female</option>
@@ -119,34 +121,36 @@ export default function PatientsPage() {
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[800px] sm:min-w-0">
               <thead>
                 <tr className="bg-surface-50">
                   {['Name', 'Age', 'Gender', 'Phone', 'Blood Group', 'Actions'].map((h) => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
                 {patients.map((p) => (
                   <tr key={p.id} className="hover:bg-surface-50/50 transition-colors">
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-4">
                       <p className="text-sm font-medium text-surface-800">{p.name}</p>
-                      {p.email && <p className="text-xs text-surface-400">{p.email}</p>}
+                      {p.email && <p className="text-[10px] sm:text-xs text-surface-400">{p.email}</p>}
                     </td>
-                    <td className="px-6 py-4 text-sm text-surface-600">{p.age}</td>
-                    <td className="px-6 py-4 text-sm text-surface-600 capitalize">{p.gender}</td>
-                    <td className="px-6 py-4 text-sm text-surface-600 flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-surface-400" /> {p.phone}
+                    <td className="px-4 sm:px-6 py-4 text-sm text-surface-600">{p.age}</td>
+                    <td className="px-4 sm:px-6 py-4 text-sm text-surface-600 capitalize">{p.gender}</td>
+                    <td className="px-4 sm:px-6 py-4 text-sm text-surface-600">
+                      <div className="flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-surface-400" /> {p.phone}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-surface-600">{p.blood_group || '—'}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-4 text-sm text-surface-600">{p.blood_group || '—'}</td>
+                    <td className="px-4 sm:px-6 py-4">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => openEdit(p)} className="btn-ghost p-2" title="Edit">
-                          <Pencil className="w-4 h-4 text-surface-500" />
+                        <button onClick={() => openEdit(p)} className="p-2 text-surface-400 hover:text-primary-600" title="Edit">
+                          <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(p.id)} className="btn-ghost p-2" title="Delete">
-                          <Trash2 className="w-4 h-4 text-red-400" />
+                        <button onClick={() => handleDelete(p.id)} className="p-2 text-surface-400 hover:text-red-500" title="Delete">
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -155,7 +159,7 @@ export default function PatientsPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-6 py-3 border-t border-surface-100 flex justify-end">
+          <div className="px-6 py-3 border-t border-surface-100 flex justify-center sm:justify-end">
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </motion.div>
@@ -164,7 +168,7 @@ export default function PatientsPage() {
       {/* Modal */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Patient' : 'New Patient'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label-text">Full Name *</label>
               <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" />
@@ -202,9 +206,9 @@ export default function PatientsPage() {
             <label className="label-text">Medical Notes</label>
             <textarea value={form.medical_notes} onChange={(e) => setForm({ ...form, medical_notes: e.target.value })} className="input-field resize-none" rows={2} />
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
-            <button type="submit" className="btn-primary">{editing ? 'Update' : 'Create'} Patient</button>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary w-full sm:w-auto">Cancel</button>
+            <button type="submit" className="btn-primary w-full sm:w-auto">{editing ? 'Update' : 'Create'} Patient</button>
           </div>
         </form>
       </Modal>

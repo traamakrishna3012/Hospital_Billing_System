@@ -128,12 +128,12 @@ export default function TestsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-surface-800">Tests & Services</h1>
-          <p className="text-surface-400 mt-1">{total} tests registered</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-surface-800">Tests & Services</h1>
+          <p className="text-surface-400 text-sm mt-1">{total} tests registered</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -141,21 +141,23 @@ export default function TestsPage() {
             accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
             className="hidden" 
           />
-          <button onClick={() => setBulkModalOpen(true)} className="btn-secondary flex items-center gap-2">
+          <button onClick={() => setBulkModalOpen(true)} className="btn-secondary flex items-center justify-center gap-2 flex-1 sm:flex-initial">
              <UploadCloud className="w-4 h-4" /> Bulk Upload
           </button>
-          <button onClick={() => setCatModalOpen(true)} className="btn-secondary flex items-center gap-2">
+          <button onClick={() => setCatModalOpen(true)} className="btn-secondary flex items-center justify-center gap-2 flex-1 sm:flex-initial">
             <Tag className="w-4 h-4" /> Add Category
           </button>
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+          <button onClick={openCreate} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" /> Add Test
           </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search tests..." />
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="input-field w-48">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+        <div className="flex-1">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search tests..." className="w-full" />
+        </div>
+        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="input-field sm:w-48">
           <option value="">All Categories</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
@@ -175,39 +177,39 @@ export default function TestsPage() {
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[800px] sm:min-w-0">
               <thead>
                 <tr className="bg-surface-50">
                   {['Test Name', 'Code', 'Category', 'Price (MRP)', 'Status', 'Actions'].map((h) => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
                 {tests.map((t) => (
                   <tr key={t.id} className="hover:bg-surface-50/50 transition-colors">
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-4">
                       <p className="text-sm font-medium text-surface-800">{t.name}</p>
-                      {t.description && <p className="text-xs text-surface-400 truncate max-w-xs">{t.description}</p>}
+                      {t.description && <p className="text-[10px] sm:text-xs text-surface-400 truncate max-w-[200px]">{t.description}</p>}
                     </td>
-                    <td className="px-6 py-4 text-sm text-surface-500 font-mono">{t.code || '—'}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-4 text-sm text-surface-500 font-mono">{t.code || '—'}</td>
+                    <td className="px-4 sm:px-6 py-4">
                       {t.category ? (
-                        <span className="badge-info">{t.category.name}</span>
+                        <span className="badge-info text-[10px] sm:text-xs">{t.category.name}</span>
                       ) : (
                         <span className="text-sm text-surface-400">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-surface-800">₹{Number(t.price).toLocaleString()}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-4 text-sm font-semibold text-surface-800 whitespace-nowrap">₹{Number(t.price).toLocaleString()}</td>
+                    <td className="px-4 sm:px-6 py-4">
                       <span className={t.is_active ? 'badge-success' : 'badge-neutral'}>
                         {t.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => openEdit(t)} className="btn-ghost p-2"><Pencil className="w-4 h-4 text-surface-500" /></button>
-                        <button onClick={() => handleDelete(t.id)} className="btn-ghost p-2"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                    <td className="px-4 sm:px-6 py-4">
+                      <div className="flex items-center gap-0.5">
+                        <button onClick={() => openEdit(t)} className="p-2 text-surface-400 hover:text-primary-600"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(t.id)} className="p-2 text-surface-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -215,7 +217,7 @@ export default function TestsPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-6 py-3 border-t border-surface-100 flex justify-end">
+          <div className="px-6 py-3 border-t border-surface-100 flex justify-center sm:justify-end">
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </motion.div>
@@ -228,7 +230,7 @@ export default function TestsPage() {
             <label className="label-text">Test Name *</label>
             <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" placeholder="e.g., Complete Blood Count" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label-text">Price (MRP) *</label>
               <input type="number" required min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="input-field" />
@@ -247,11 +249,11 @@ export default function TestsPage() {
           </div>
           <div>
             <label className="label-text">Description</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-field resize-none" rows={2} />
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-field resize-none text-sm" rows={2} />
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
-            <button type="submit" className="btn-primary">{editing ? 'Update' : 'Add'} Test</button>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary w-full sm:w-auto">Cancel</button>
+            <button type="submit" className="btn-primary w-full sm:w-auto">{editing ? 'Update' : 'Add'} Test</button>
           </div>
         </form>
       </Modal>

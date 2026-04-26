@@ -126,12 +126,12 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-surface-800">Staff Management</h1>
-          <p className="text-surface-400 mt-1">{total} team members</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-surface-800">Staff Management</h1>
+          <p className="text-surface-400 text-sm mt-1">{total} team members</p>
         </div>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+        <button onClick={openCreate} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
           <Plus className="w-4 h-4" /> Add Staff
         </button>
       </div>
@@ -143,32 +143,32 @@ export default function StaffPage() {
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[800px] sm:min-w-0">
               <thead>
                 <tr className="bg-surface-50">
                   {['Name', 'Email', 'Role', 'Module Access', 'Status', 'Actions'].map((h) => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-surface-50/50">
-                    <td className="px-6 py-4">
+                  <tr key={user.id} className="hover:bg-surface-50/50 transition-colors">
+                    <td className="px-4 sm:px-6 py-4">
                       <p className="text-sm font-medium text-surface-800">{user.full_name}</p>
-                      {user.phone && <p className="text-xs text-surface-400">{user.phone}</p>}
+                      {user.phone && <p className="text-[10px] text-surface-400">{user.phone}</p>}
                     </td>
-                    <td className="px-6 py-4 text-sm text-surface-600">{user.email}</td>
-                    <td className="px-6 py-4"><StatusBadge status={user.role} /></td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-4 text-sm text-surface-600">{user.email}</td>
+                    <td className="px-4 sm:px-6 py-4"><StatusBadge status={user.role} /></td>
+                    <td className="px-4 sm:px-6 py-4">
                       {user.role === 'admin' ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-primary-600">
-                          <ShieldCheck className="w-3.5 h-3.5" /> Full Access
+                        <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-primary-600">
+                          <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Full Access
                         </span>
                       ) : user.modules ? (
                         <div className="flex flex-wrap gap-1">
                           {ALL_MODULES.filter(m => user.modules[m.id] !== false).map(m => (
-                            <span key={m.id} className="text-[10px] px-1.5 py-0.5 rounded bg-primary-50 text-primary-700 font-medium capitalize">
+                            <span key={m.id} className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded bg-primary-50 text-primary-700 font-medium capitalize">
                               {m.label}
                             </span>
                           ))}
@@ -177,12 +177,12 @@ export default function StaffPage() {
                         <span className="text-xs text-surface-400">All (default)</span>
                       )}
                     </td>
-                    <td className="px-6 py-4"><StatusBadge status={user.is_active ? 'active' : 'inactive'} /></td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-4"><StatusBadge status={user.is_active ? 'active' : 'inactive'} /></td>
+                    <td className="px-4 sm:px-6 py-4">
                       {user.id !== currentUser?.id && (
-                        <div className="flex gap-1">
-                          <button onClick={() => openEdit(user)} className="btn-ghost p-2"><Pencil className="w-4 h-4 text-surface-500" /></button>
-                          <button onClick={() => handleDelete(user.id)} className="btn-ghost p-2"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                        <div className="flex gap-0.5">
+                          <button onClick={() => openEdit(user)} className="p-2 text-surface-400 hover:text-primary-600"><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => handleDelete(user.id)} className="p-2 text-surface-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       )}
                     </td>
@@ -191,7 +191,7 @@ export default function StaffPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-6 py-3 border-t border-surface-100 flex justify-end">
+          <div className="px-6 py-3 border-t border-surface-100 flex justify-center sm:justify-end">
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </motion.div>
@@ -221,7 +221,7 @@ export default function StaffPage() {
           )}
           <div>
             <label className="label-text">Role</label>
-            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="input-field">
+            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="input-field text-sm">
               <option value="staff">Staff / Receptionist</option>
               <option value="admin">Admin</option>
               <option value="doctor">Consulting Doctor</option>
@@ -238,7 +238,7 @@ export default function StaffPage() {
                 placeholder="Leave blank to keep current" 
                 value={form.password} 
                 onChange={(e) => setForm({ ...form, password: e.target.value })} 
-                className="input-field" 
+                className="input-field text-sm" 
               />
               <p className="text-[10px] text-surface-400 mt-1">
                 Enter a new password if the staff member forgot theirs.
@@ -256,7 +256,7 @@ export default function StaffPage() {
               <p className="text-xs text-surface-400 mb-3">
                 Control which sections this staff member can access in the sidebar.
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {ALL_MODULES.map((mod) => {
                   const Icon = mod.icon;
                   const enabled = form.modules[mod.id] !== false;
@@ -265,7 +265,7 @@ export default function StaffPage() {
                       key={mod.id}
                       type="button"
                       onClick={() => toggleModule(mod.id)}
-                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all duration-150 ${
+                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all duration-150 ${
                         enabled
                           ? 'border-primary-500 bg-primary-50 text-primary-700'
                           : 'border-surface-200 bg-surface-50 text-surface-400'
@@ -290,9 +290,9 @@ export default function StaffPage() {
           )}
 
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
-            <button type="submit" className="btn-primary">{editing ? 'Update' : 'Create'}</button>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary w-full sm:w-auto">Cancel</button>
+            <button type="submit" className="btn-primary w-full sm:w-auto">{editing ? 'Update' : 'Create'}</button>
           </div>
         </form>
       </Modal>

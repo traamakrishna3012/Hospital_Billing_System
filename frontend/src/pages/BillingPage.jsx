@@ -266,19 +266,21 @@ export default function BillingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-surface-800">Billing</h1>
-          <p className="text-surface-400 mt-1">{total} bills generated</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-surface-800">Billing</h1>
+          <p className="text-surface-400 text-sm mt-1">{total} bills generated</p>
         </div>
-        <button onClick={openCreateModal} className="btn-primary flex items-center gap-2">
+        <button onClick={openCreateModal} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
           <Plus className="w-4 h-4" /> Create Bill
         </button>
       </div>
 
-      <div className="flex items-center gap-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search bill number or patient..." />
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field w-40">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+        <div className="flex-1">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search bill number or patient..." className="w-full" />
+        </div>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field sm:w-40">
           <option value="">All Status</option>
           <option value="paid">Paid</option>
           <option value="unpaid">Unpaid</option>
@@ -298,32 +300,32 @@ export default function BillingPage() {
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[1000px] sm:min-w-0">
               <thead>
                 <tr className="bg-surface-50">
                   {['Bill No.', 'Patient', 'Doctor', 'Total', 'Status', 'Payment', 'Date', 'Actions'].map((h) => (
-                    <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-4 sm:px-5 py-3 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
                 {bills.map((bill) => (
                   <tr key={bill.id} className="hover:bg-surface-50/50 transition-colors">
-                    <td className="px-5 py-4 text-sm font-medium text-primary-600">{bill.bill_number}</td>
-                    <td className="px-5 py-4 text-sm text-surface-700">{bill.patient?.name || 'N/A'}</td>
-                    <td className="px-5 py-4 text-sm text-surface-600">{bill.doctor?.name ? `Dr. ${bill.doctor.name}` : '—'}</td>
-                    <td className="px-5 py-4 text-sm font-semibold text-surface-800">₹{Number(bill.total).toLocaleString()}</td>
-                    <td className="px-5 py-4"><StatusBadge status={bill.status} /></td>
-                    <td className="px-5 py-4 text-sm text-surface-500 uppercase">{bill.payment_mode}</td>
-                    <td className="px-5 py-4 text-sm text-surface-400">
+                    <td className="px-4 sm:px-5 py-4 text-sm font-medium text-primary-600">{bill.bill_number}</td>
+                    <td className="px-4 sm:px-5 py-4 text-sm text-surface-700">{bill.patient?.name || 'N/A'}</td>
+                    <td className="px-4 sm:px-5 py-4 text-sm text-surface-600">{bill.doctor?.name ? `Dr. ${bill.doctor.name}` : '—'}</td>
+                    <td className="px-4 sm:px-5 py-4 text-sm font-semibold text-surface-800 whitespace-nowrap">₹{Number(bill.total).toLocaleString()}</td>
+                    <td className="px-4 sm:px-5 py-4"><StatusBadge status={bill.status} /></td>
+                    <td className="px-4 sm:px-5 py-4 text-sm text-surface-500 uppercase">{bill.payment_mode}</td>
+                    <td className="px-4 sm:px-5 py-4 text-sm text-surface-400 whitespace-nowrap">
                       {bill.created_at ? format(new Date(bill.created_at), 'dd MMM yy') : '-'}
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 sm:px-5 py-4">
                       <div className="flex items-center gap-0.5">
-                        <button onClick={() => viewBill(bill.id)} className="btn-ghost p-1.5" title="View"><Eye className="w-4 h-4 text-surface-500" /></button>
-                        <button onClick={() => downloadPDF(bill.id)} className="btn-ghost p-1.5" title="Download PDF"><Download className="w-4 h-4 text-primary-500" /></button>
-                        <button onClick={() => sendEmail(bill.id)} className="btn-ghost p-1.5" title="Email Receipt"><Mail className="w-4 h-4 text-emerald-500" /></button>
-                        <button onClick={() => deleteBill(bill.id)} className="btn-ghost p-1.5" title="Delete"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                        <button onClick={() => viewBill(bill.id)} className="p-2 text-surface-400 hover:text-primary-500" title="View"><Eye className="w-4 h-4" /></button>
+                        <button onClick={() => downloadPDF(bill.id)} className="p-2 text-surface-400 hover:text-primary-600" title="Download PDF"><Download className="w-4 h-4" /></button>
+                        <button onClick={() => sendEmail(bill.id)} className="p-2 text-surface-400 hover:text-emerald-500" title="Email Receipt"><Mail className="w-4 h-4" /></button>
+                        <button onClick={() => deleteBill(bill.id)} className="p-2 text-surface-400 hover:text-red-500" title="Delete"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -331,7 +333,7 @@ export default function BillingPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-6 py-3 border-t border-surface-100 flex justify-end">
+          <div className="px-6 py-3 border-t border-surface-100 flex justify-center sm:justify-end">
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </motion.div>
@@ -340,7 +342,7 @@ export default function BillingPage() {
       {/* ── Create Bill Modal ──────────────────────────────── */}
       <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title="Create New Bill" size="xl">
         <form onSubmit={handleCreateBill} className="space-y-5">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="label-text">Find Patient *</label>
               <div className="relative">
@@ -374,7 +376,6 @@ export default function BillingPage() {
                   </ul>
                 )}
               </div>
-              <p className="text-[10px] text-surface-400">Reusing profiles saves time and keeps medical history linked.</p>
             </div>
             <div>
               <label className="label-text">Doctor *</label>
@@ -427,54 +428,63 @@ export default function BillingPage() {
               <label className="label-text mb-0">Bill Items *</label>
               <button type="button" onClick={addItem} className="text-sm text-primary-600 font-medium hover:text-primary-700">+ Add Item</button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {billForm.items.map((item, i) => (
-                <div key={i} className="flex gap-3 items-end p-3 bg-surface-50 rounded-xl">
-                  <div className="flex-1">
-                    <label className="text-xs text-surface-400">Select Test or Type</label>
-                    <select value={item.medical_test_id} onChange={(e) => updateItem(i, 'medical_test_id', e.target.value)} className="input-field text-sm py-2">
-                      <option value="">Custom Item</option>
-                      {tests.map((t) => <option key={t.id} value={t.id}>{t.name} — ₹{t.price}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-xs text-surface-400">Description</label>
-                    <input required value={item.description} onChange={(e) => updateItem(i, 'description', e.target.value)} className="input-field text-sm py-2" />
-                  </div>
-                  <div className="w-28">
-                    <label className="text-xs text-surface-400">Price</label>
-                    <input type="number" required min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItem(i, 'unit_price', e.target.value)} className="input-field text-sm py-2" />
-                  </div>
-                  <div className="w-20">
-                    <label className="text-xs text-surface-400">Qty</label>
-                    <input type="number" min="1" value={item.quantity} onChange={(e) => updateItem(i, 'quantity', e.target.value)} className="input-field text-sm py-2" />
-                  </div>
-                  <button type="button" onClick={() => removeItem(i)} className="btn-ghost p-2 text-red-400 mb-0.5">
-                    <Trash2 className="w-4 h-4" />
+                <div key={i} className="relative p-4 bg-surface-50 rounded-2xl border border-surface-100">
+                  <button 
+                    type="button" 
+                    onClick={() => removeItem(i)} 
+                    className="absolute -top-2 -right-2 w-7 h-7 bg-white border border-red-100 rounded-full flex items-center justify-center text-red-500 shadow-sm hover:bg-red-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div className="sm:col-span-4">
+                      <label className="text-[10px] uppercase font-bold text-surface-400 mb-1 block tracking-wider">Select Test</label>
+                      <select value={item.medical_test_id} onChange={(e) => updateItem(i, 'medical_test_id', e.target.value)} className="input-field text-sm py-2">
+                        <option value="">Custom Item</option>
+                        {tests.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="sm:col-span-4">
+                      <label className="text-[10px] uppercase font-bold text-surface-400 mb-1 block tracking-wider">Description</label>
+                      <input required value={item.description} onChange={(e) => updateItem(i, 'description', e.target.value)} className="input-field text-sm py-2" />
+                    </div>
+                    <div className="grid grid-cols-2 sm:col-span-4 gap-3">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-surface-400 mb-1 block tracking-wider">Price</label>
+                        <input type="number" required min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItem(i, 'unit_price', e.target.value)} className="input-field text-sm py-2" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-surface-400 mb-1 block tracking-wider">Qty</label>
+                        <input type="number" min="1" value={item.quantity} onChange={(e) => updateItem(i, 'quantity', e.target.value)} className="input-field text-sm py-2" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Payment Details */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
               <label className="label-text">Tax (%)</label>
               <input type="number" min="0" max="100" step="0.01" value={billForm.tax_percent} onChange={(e) => setBillForm({ ...billForm, tax_percent: e.target.value })} className="input-field" placeholder="18" />
             </div>
-            <div className="col-span-1">
+            <div>
               <label className="label-text">Discount</label>
               <div className="relative flex items-center">
                 <input 
                    type="number" min="0" step="0.01" value={billForm.discount_value} 
                    onChange={(e) => setBillForm({ ...billForm, discount_value: e.target.value })} 
-                   className="input-field pr-16" placeholder="0" 
+                   className="input-field pr-12 text-sm" placeholder="0" 
                 />
                 <select 
                    value={billForm.discount_type}
                    onChange={(e) => setBillForm({ ...billForm, discount_type: e.target.value })}
-                   className="absolute right-[1px] h-[calc(100%-2px)] rounded-r-xl border-l border-surface-200 bg-surface-50 px-2 text-surface-600 font-medium text-sm focus:outline-none"
+                   className="absolute right-[1px] h-[calc(100%-2px)] rounded-r-xl border-l border-surface-200 bg-surface-50 px-1 text-surface-600 text-xs focus:outline-none"
                 >
                   <option value="percent">%</option>
                   <option value="flat">₹</option>
@@ -482,8 +492,8 @@ export default function BillingPage() {
               </div>
             </div>
             <div>
-              <label className="label-text">Payment Mode</label>
-              <select value={billForm.payment_mode} onChange={(e) => setBillForm({ ...billForm, payment_mode: e.target.value })} className="input-field">
+              <label className="label-text">Mode</label>
+              <select value={billForm.payment_mode} onChange={(e) => setBillForm({ ...billForm, payment_mode: e.target.value })} className="input-field text-sm">
                 <option value="cash">Cash</option>
                 <option value="card">Card</option>
                 <option value="upi">UPI</option>
@@ -492,7 +502,7 @@ export default function BillingPage() {
             </div>
             <div>
               <label className="label-text">Status</label>
-              <select value={billForm.status} onChange={(e) => setBillForm({ ...billForm, status: e.target.value })} className="input-field">
+              <select value={billForm.status} onChange={(e) => setBillForm({ ...billForm, status: e.target.value })} className="input-field text-sm">
                 <option value="paid">Paid</option>
                 <option value="unpaid">Unpaid</option>
               </select>
@@ -501,22 +511,22 @@ export default function BillingPage() {
 
           <div>
             <label className="label-text">Notes</label>
-            <textarea value={billForm.notes} onChange={(e) => setBillForm({ ...billForm, notes: e.target.value })} className="input-field resize-none" rows={2} />
+            <textarea value={billForm.notes} onChange={(e) => setBillForm({ ...billForm, notes: e.target.value })} className="input-field resize-none text-sm" rows={2} />
           </div>
 
           {/* Totals Preview */}
-          <div className="bg-surface-50 rounded-xl p-4 space-y-2 text-sm">
+          <div className="bg-surface-50 rounded-2xl p-4 space-y-2 text-sm border border-surface-100">
             <div className="flex justify-between"><span className="text-surface-500">Subtotal</span><span className="font-medium">₹{subtotal.toLocaleString()}</span></div>
-            {discountAmt > 0 && <div className="flex justify-between text-emerald-600"><span>Discount ({billForm.discount_value}{billForm.discount_type === 'percent' ? '%' : '₹'})</span><span>- ₹{discountAmt.toFixed(2)}</span></div>}
+            {discountAmt > 0 && <div className="flex justify-between text-emerald-600"><span>Discount</span><span>- ₹{discountAmt.toFixed(2)}</span></div>}
             <div className="flex justify-between"><span className="text-surface-500">GST ({billForm.tax_percent || 0}%)</span><span>₹{taxAmt.toFixed(2)}</span></div>
             <div className="flex justify-between pt-2 border-t border-surface-200 text-base font-bold text-surface-800">
               <span>Grand Total</span><span>₹{grandTotal.toFixed(2)}</span>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">Cancel</button>
-            <button type="submit" className="btn-primary">Create Bill</button>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary w-full sm:w-auto">Cancel</button>
+            <button type="submit" className="btn-primary w-full sm:w-auto">Create Bill</button>
           </div>
         </form>
       </Modal>

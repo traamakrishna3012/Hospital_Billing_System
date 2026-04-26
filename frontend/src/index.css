@@ -127,11 +127,16 @@ body {
   }
 
   .table-container {
-    @apply w-full overflow-x-auto rounded-xl border border-surface-200;
+    @apply w-full overflow-x-auto rounded-xl border border-surface-200 bg-white;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
   }
 
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold;
   }
 
   .badge-success {

@@ -96,16 +96,16 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-4xl pb-10">
       <div>
-        <h1 className="text-2xl font-bold text-surface-800">Clinic Settings</h1>
-        <p className="text-surface-400 mt-1">Manage your clinic's profile and billing defaults</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-surface-800">Clinic Settings</h1>
+        <p className="text-surface-400 text-sm mt-1">Manage your clinic's profile and billing defaults</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         {/* Logo Section */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6">
-          <h2 className="text-lg font-semibold text-surface-800 mb-4">Clinic Logo</h2>
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 rounded-2xl bg-surface-100 border-2 border-dashed border-surface-300 flex items-center justify-center overflow-hidden">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-surface-800 mb-4">Clinic Logo</h2>
+          <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+            <div className="w-24 h-24 rounded-2xl bg-surface-100 border-2 border-dashed border-surface-300 flex items-center justify-center overflow-hidden shadow-inner">
               {clinic?.logo_url ? (
                 <img 
                   src={clinic.logo_url} 
@@ -121,16 +121,16 @@ export default function SettingsPage() {
                 <Upload className="w-4 h-4" /> Upload Logo
                 <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
               </label>
-              <p className="text-xs text-surface-400 mt-2">PNG, JPG, or WebP. Max 5MB.</p>
+              <p className="text-[10px] sm:text-xs text-surface-400 mt-2">PNG, JPG, or WebP. Max 5MB.</p>
             </div>
           </div>
         </motion.div>
 
         {/* Clinic Details */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-6">
-          <h2 className="text-lg font-semibold text-surface-800 mb-4">Clinic Information</h2>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-surface-800 mb-4">Clinic Information</h2>
           <form onSubmit={handleSave} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label-text">Clinic Name</label>
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" />
@@ -151,11 +151,11 @@ export default function SettingsPage() {
 
             <div>
               <label className="label-text">Address</label>
-              <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="input-field resize-none" rows={2} />
+              <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="input-field resize-none text-sm" rows={2} />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div><label className="label-text">City</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="input-field" /></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="col-span-2 sm:col-span-1"><label className="label-text">City</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="input-field" /></div>
               <div><label className="label-text">State</label><input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="input-field" /></div>
               <div><label className="label-text">Pincode</label><input value={form.pincode} onChange={(e) => setForm({ ...form, pincode: e.target.value })} className="input-field" /></div>
             </div>
@@ -167,12 +167,12 @@ export default function SettingsPage() {
 
             <div>
               <label className="label-text">Biller Header (Full address/GST details for Invoice)</label>
-              <textarea value={form.biller_header} onChange={(e) => setForm({ ...form, biller_header: e.target.value })} className="input-field resize-none" rows={3} placeholder="Enter full clinic name, address, GSTIN, and License info to show on bills" />
+              <textarea value={form.biller_header} onChange={(e) => setForm({ ...form, biller_header: e.target.value })} className="input-field resize-none text-sm" rows={3} placeholder="Enter full clinic name, address, GSTIN, and License info" />
               <p className="text-[10px] text-surface-400 mt-1">This will be printed prominently on the bill header.</p>
             </div>
 
-            <h3 className="text-md font-semibold text-surface-800 pt-4">Billing Defaults</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <h3 className="text-sm font-bold text-surface-800 pt-4 uppercase tracking-wider">Billing Defaults</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label-text">Default Tax Rate (%)</label>
                 <input type="number" min="0" max="100" step="0.01" value={form.tax_percent} onChange={(e) => setForm({ ...form, tax_percent: e.target.value })} className="input-field" />
@@ -188,7 +188,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex justify-end pt-2">
-              <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
+              <button type="submit" disabled={saving} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
                 <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Settings'}
               </button>
             </div>
@@ -200,17 +200,17 @@ export default function SettingsPage() {
           initial={{ opacity: 0, y: 10 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ delay: 0.2 }}
-          className="glass-card p-6 border-t-4 border-t-primary-500"
+          className="glass-card p-4 sm:p-6 border-t-4 border-t-primary-500"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
               <Key className="w-5 h-5" />
             </div>
-            <h2 className="text-lg font-semibold text-surface-800">Security & Password</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-surface-800">Security & Password</h2>
           </div>
 
           <form onSubmit={handlePasswordChange} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="label-text">Current Password</label>
                 <input 
@@ -235,7 +235,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="label-text">Confirm New Password</label>
+                <label className="label-text">Confirm Password</label>
                 <input 
                   type="password" 
                   required
@@ -255,7 +255,7 @@ export default function SettingsPage() {
               <button 
                 type="submit" 
                 disabled={changing} 
-                className="btn-primary flex items-center gap-2"
+                className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Key className="w-4 h-4" /> 
                 {changing ? 'Updating...' : 'Update Password'}
