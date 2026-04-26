@@ -219,62 +219,50 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 # ── PWA & Static Assets ───────────────────────────────────────
-# Explicitly serve these to avoid SPA redirection issues on mobile
+# Explicitly serve these with HIGH PRIORITY before any SPA routing
 @app.get("/manifest.json", include_in_schema=False)
 async def get_manifest():
     path = os.path.join(STATIC_DIR, "manifest.json")
     if os.path.exists(path):
-        return FileResponse(path, media_type="application/json")
+        return FileResponse(path, media_type="application/json", headers={"Cache-Control": "no-cache"})
     return JSONResponse(status_code=404, content={"detail": "manifest.json not found"})
 
 @app.get("/sw.js", include_in_schema=False)
 async def get_sw():
     path = os.path.join(STATIC_DIR, "sw.js")
     if os.path.exists(path):
-        return FileResponse(path, media_type="application/javascript")
+        return FileResponse(path, media_type="application/javascript", headers={"Cache-Control": "no-cache"})
     return JSONResponse(status_code=404, content={"detail": "sw.js not found"})
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def get_favicon():
-    return JSONResponse(status_code=204, content=None) # No favicon for now
+    return JSONResponse(status_code=204, content=None)
 
+# Mount assets directory (for CSS/JS chunks)
+if os.path.exists(os.path.join(STATIC_DIR, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
 
-class SPAStaticFiles(StaticFiles):
-    """Custom StaticFiles that serves index.html for 404s (SPA routing)."""
-    async def get_response(self, path: str, scope):
-        response = await super().get_response(path, scope)
-        
-        # If it's a 404 for a non-file route, serve index.html
-        if response.status_code == 404:
-            path_str = scope["path"]
-            # If it's an API call or a file that SHOULD exist (has extension), don't fallback to index.html
-            if path_str.startswith("/api") or "." in path_str.split("/")[-1]:
-                return response
-            
-            index_path = os.path.join(STATIC_DIR, "index.html")
-            if os.path.exists(index_path):
-                response = FileResponse(index_path)
-                # NEVER cache index.html fallback
-                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-                return response
-        
-        # ── Cache Headers for Performance ────────────────────────
-        if path == "" or path == "index.html":
-            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-            response.headers["Pragma"] = "no-cache"
-            response.headers["Expires"] = "0"
-        else:
-            # LONG cache for assets (hashed by Vite, so safe to cache forever)
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-        
-        return response
-
-
-# Mount the SPA handler at root
-if os.path.exists(STATIC_DIR):
-    app.mount("/", SPAStaticFiles(directory=STATIC_DIR, html=True), name="spa")
-else:
-    logger.warning(f"Static directory {STATIC_DIR} not found. Frontend serving disabled.")
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa_fallback(full_path: str):
+    """
+    Catch-all route to serve index.html for SPA routing.
+    This replaces app.mount("/") to provide more control.
+    """
+    # 1. Ignore API calls
+    if full_path.startswith("api/"):
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
+    
+    # 2. Check if it's a direct file in static (like images or other assets)
+    file_path = os.path.join(STATIC_DIR, full_path)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+    
+    # 3. Fallback to index.html for everything else (the SPA)
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    
+    return JSONResponse(status_code=404, content={"detail": "Site frontend not found"})
 
 
 
