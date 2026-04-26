@@ -1,24 +1,25 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
-import DashboardLayout from './layouts/DashboardLayout';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import PatientsPage from './pages/PatientsPage';
-import DoctorsPage from './pages/DoctorsPage';
-import TestsPage from './pages/TestsPage';
-import BillingPage from './pages/BillingPage';
-import SettingsPage from './pages/SettingsPage';
-import StaffPage from './pages/StaffPage';
-import ReportsPage from './pages/ReportsPage';
-import SuperAdminDashboard from './pages/SuperAdminDashboard';
-import SuperAdminTenantsPage from './pages/SuperAdminTenantsPage';
-import SuperAdminRevenuePage from './pages/SuperAdminRevenuePage';
-import SuperAdminSettingsPage from './pages/SuperAdminSettingsPage';
+import { LoadingSpinner } from './components/UI';
 
-
-import PendingApprovalPage from './pages/PendingApprovalPage';
+const DashboardLayout = lazy(() => import('./layouts/DashboardLayout'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const PatientsPage = lazy(() => import('./pages/PatientsPage'));
+const DoctorsPage = lazy(() => import('./pages/DoctorsPage'));
+const TestsPage = lazy(() => import('./pages/TestsPage'));
+const BillingPage = lazy(() => import('./pages/BillingPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const StaffPage = lazy(() => import('./pages/StaffPage'));
+const ReportsPage = lazy(() => import('./pages/ReportsPage'));
+const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard'));
+const SuperAdminTenantsPage = lazy(() => import('./pages/SuperAdminTenantsPage'));
+const SuperAdminRevenuePage = lazy(() => import('./pages/SuperAdminRevenuePage'));
+const SuperAdminSettingsPage = lazy(() => import('./pages/SuperAdminSettingsPage'));
+const PendingApprovalPage = lazy(() => import('./pages/PendingApprovalPage'));
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, user, isSuperAdmin } = useAuthStore();
@@ -68,36 +69,38 @@ export default function App() {
           duration: 3000,
         }}
       />
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-        <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
-        <Route path="/pending-approval" element={<PendingApprovalPage />} />
+      <Suspense fallback={<LoadingSpinner fullPage />}>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+          <Route path="/pending-approval" element={<PendingApprovalPage />} />
 
-        {/* Protected Clinic Routes */}
-        <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="patients" element={<PatientsPage />} />
-          <Route path="doctors" element={<DoctorsPage />} />
-          <Route path="tests" element={<TestsPage />} />
-          <Route path="billing" element={<BillingPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="staff" element={<StaffPage />} />
-          <Route path="reports" element={<ReportsPage />} />
-          
-          {/* Super Admin Section (Inside same layout but with SuperAdminRoute wrapper) */}
-          <Route path="super/dashboard" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
-          <Route path="super/tenants" element={<SuperAdminRoute><SuperAdminTenantsPage /></SuperAdminRoute>} />
-          <Route path="super/revenue" element={<SuperAdminRoute><SuperAdminRevenuePage /></SuperAdminRoute>} />
-          <Route path="super/settings" element={<SuperAdminRoute><SuperAdminSettingsPage /></SuperAdminRoute>} />
+          {/* Protected Clinic Routes */}
+          <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="patients" element={<PatientsPage />} />
+            <Route path="doctors" element={<DoctorsPage />} />
+            <Route path="tests" element={<TestsPage />} />
+            <Route path="billing" element={<BillingPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="staff" element={<StaffPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            
+            {/* Super Admin Section (Inside same layout but with SuperAdminRoute wrapper) */}
+            <Route path="super/dashboard" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
+            <Route path="super/tenants" element={<SuperAdminRoute><SuperAdminTenantsPage /></SuperAdminRoute>} />
+            <Route path="super/revenue" element={<SuperAdminRoute><SuperAdminRevenuePage /></SuperAdminRoute>} />
+            <Route path="super/settings" element={<SuperAdminRoute><SuperAdminSettingsPage /></SuperAdminRoute>} />
 
-        </Route>
+          </Route>
 
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
