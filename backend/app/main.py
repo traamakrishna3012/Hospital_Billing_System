@@ -129,14 +129,13 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     
     # Secure but permissive CSP for React + Vite + PWA
-    # We use 'self' and also allow the specific origin to be safe
     origin = str(request.base_url).rstrip('/')
     csp = (
-        f"default-src 'self' {origin} https://fonts.googleapis.com https://fonts.gstatic.com; "
-        f"script-src 'self' 'unsafe-inline' 'unsafe-eval' {origin}; "
+        f"default-src 'self' {origin} * data: blob:; "
+        f"script-src 'self' 'unsafe-inline' 'unsafe-eval' {origin} *; "
         f"connect-src 'self' {origin} *; "
-        f"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        f"font-src 'self' data: https://fonts.gstatic.com; "
+        f"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com *; "
+        f"font-src 'self' data: https://fonts.gstatic.com *; "
         f"img-src 'self' data: blob: *; "
         "frame-ancestors 'none'; "
         "base-uri 'self'; "
