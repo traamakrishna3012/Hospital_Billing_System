@@ -36,9 +36,9 @@ export default function Sidebar({ isOpen, onClose }) {
   const { user, logout, isAdmin, isSuperAdmin } = useAuthStore();
   const navigate = useNavigate();
 
-  // Close sidebar on route change in mobile
+  // Close sidebar on route change
   useEffect(() => {
-    if (isMobile && isOpen) {
+    if (isOpen) {
       onClose();
     }
   }, [location.pathname]);
@@ -55,6 +55,7 @@ export default function Sidebar({ isOpen, onClose }) {
   }, [isOpen, onClose]);
 
   const handleLogout = () => {
+    if (isOpen) onClose();
     logout();
     navigate('/login');
   };
@@ -72,7 +73,7 @@ export default function Sidebar({ isOpen, onClose }) {
       to={item.to}
       className={({ isActive }) => linkClasses(isActive)}
       onClick={() => {
-        if (isMobile) onClose();
+        onClose();
       }}
       title={collapsed ? item.label : undefined}
     >

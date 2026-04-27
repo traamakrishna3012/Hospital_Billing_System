@@ -1,5 +1,5 @@
 // Force clear cache on version change
-const APP_VERSION = '1.0.3'; // Increment this to force a full refresh
+const APP_VERSION = '1.0.4'; // Increment this to force a full refresh
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
