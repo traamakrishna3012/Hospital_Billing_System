@@ -127,7 +127,7 @@ async def register(
         t_res = await db.execute(select(Tenant.modules).where(Tenant.id == user.tenant_id))
         tenant_modules = t_res.scalar_one_or_none()
     
-    user_data = UserResponse.model_validate(user).model_dump()
+    user_data = UserResponse.model_validate(user).model_dump(mode='json')
     user_data["tenant_modules"] = tenant_modules
 
     return TokenResponse(
@@ -264,7 +264,7 @@ async def refresh_token(request: Request, db: AsyncSession = Depends(get_async_s
     new_refresh_token = create_refresh_token(user.id, user.tenant_id)
 
     # Prepare response
-    user_data = UserResponse.model_validate(user).model_dump()
+    user_data = UserResponse.model_validate(user).model_dump(mode='json')
     # Fetch tenant modules
     tenant_modules = None
     if user.tenant_id:
