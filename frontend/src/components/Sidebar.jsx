@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Stethoscope, FlaskConical,
@@ -32,8 +32,16 @@ const superadminItems = [
 export default function Sidebar({ isOpen, onClose }) {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const location = useLocation();
   const { user, logout, isAdmin, isSuperAdmin } = useAuthStore();
   const navigate = useNavigate();
+
+  // Close sidebar on route change in mobile
+  useEffect(() => {
+    if (isMobile && isOpen) {
+      onClose();
+    }
+  }, [location.pathname]);
 
   // Handle window resize to keep isMobile state accurate
   useEffect(() => {
