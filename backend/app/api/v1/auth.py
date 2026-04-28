@@ -67,9 +67,9 @@ async def register(
     Register a new clinic/hospital. Creates a tenant and an admin user.
     Returns JWT tokens for immediate authentication.
     """
-    # Check if admin email already exists
+    # Check if email already exists
     existing = await db.execute(
-        select(User).where(User.email == data.admin_email).limit(1)
+        select(User).where(User.email == data.email).limit(1)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(
@@ -90,21 +90,21 @@ async def register(
         slug = f"{base_slug}-{counter}"
         counter += 1
 
-    # Create tenant
+    # Create tenant (same email for clinic contact)
     tenant = Tenant(
         name=data.clinic_name,
         slug=slug,
-        email=data.clinic_email,
+        email=data.email,
         phone=data.clinic_phone,
         address=data.clinic_address,
     )
     db.add(tenant)
     await db.flush()
 
-    # Create admin user
+    # Create admin user (same email as login ID)
     user = User(
         tenant_id=tenant.id,
-        email=data.admin_email,
+        email=data.email,
         password_hash=hash_password(data.admin_password),
         full_name=data.admin_name,
         role="admin",

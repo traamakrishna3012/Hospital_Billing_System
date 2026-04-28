@@ -14,11 +14,10 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     clinic_name: '',
-    clinic_email: '',
+    email: '',
     clinic_phone: '',
     clinic_address: '',
     admin_name: '',
-    admin_email: '',
     admin_password: '',
   });
 
@@ -100,8 +99,9 @@ export default function RegisterPage() {
                   <input id="clinic_name" name="clinic_name" required value={form.clinic_name} onChange={update('clinic_name')} className="input-field" placeholder="e.g., City Health Clinic" autoComplete="organization" />
                 </div>
                 <div>
-                  <label className="label-text">Clinic Email *</label>
-                  <input id="clinic_email" name="clinic_email" type="email" required value={form.clinic_email} onChange={update('clinic_email')} className="input-field" placeholder="contact@clinic.com" autoComplete="email" />
+                  <label className="label-text">Email *</label>
+                  <input id="email" name="email" type="email" required value={form.email} onChange={update('email')} className="input-field" placeholder="admin@clinic.com" autoComplete="email" />
+                  <p className="text-xs text-surface-400 mt-1">This email will be used for login and all communications</p>
                 </div>
                 <div>
                   <label className="label-text">Phone Number</label>
@@ -118,10 +118,6 @@ export default function RegisterPage() {
                 <div>
                   <label className="label-text">Your Full Name *</label>
                   <input id="admin_name" name="admin_name" required value={form.admin_name} onChange={update('admin_name')} className="input-field" placeholder="Dr. John Doe" autoComplete="name" />
-                </div>
-                <div>
-                  <label className="label-text">Admin Email *</label>
-                  <input id="admin_email" name="admin_email" type="email" required value={form.admin_email} onChange={update('admin_email')} className="input-field" placeholder="admin@clinic.com" autoComplete="email" />
                 </div>
                 <div>
                   <label className="label-text">Password *</label>
@@ -142,6 +138,9 @@ export default function RegisterPage() {
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
+                </div>
+                <div className="bg-primary-50 border border-primary-100 rounded-lg p-3">
+                  <p className="text-sm text-primary-700">You will log in using: <strong>{form.email}</strong></p>
                 </div>
                 <div className="flex gap-3">
                   <button type="button" onClick={() => setStep(1)} className="btn-secondary flex-1 py-3">← Back</button>

@@ -16,13 +16,13 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 # ═══════════════════════════════════════════════════════════════
 
 class RegisterRequest(BaseModel):
-    """Clinic registration — creates tenant + admin user."""
+    """Clinic registration — creates tenant + admin user.
+    Uses a single email for both clinic contact and admin login."""
     clinic_name: str = Field(..., min_length=2, max_length=255)
-    clinic_email: EmailStr
+    email: EmailStr
     clinic_phone: str = Field(default="", max_length=20)
     clinic_address: str = Field(default="", max_length=1000)
     admin_name: str = Field(..., min_length=2, max_length=255)
-    admin_email: EmailStr
     admin_password: str = Field(..., min_length=8, max_length=128)
 
     @field_validator("admin_password")
