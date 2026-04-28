@@ -355,7 +355,7 @@ def generate_receipt_pdf(
     nbv = _s("_NBV", fontSize=8, fontName="Helvetica-Bold", textColor=TEXT_DARK)
 
     notes_txt = _strip_xml(bill_data.get("notes"))
-    txn_str = f" (Txn ID: {bill_data.get('transaction_id')})" if bill_data.get("transaction_id") else ""
+    txn_id = bill_data.get("transaction_id") or ""
 
     notes_blk = [
         Paragraph("Notes", _s("_NL", fontSize=9, fontName="Helvetica-Bold",
@@ -368,12 +368,22 @@ def generate_receipt_pdf(
         Spacer(1, 2 * mm),
         Paragraph(f"{tick(is_cash)}  Cash",                                    nsv),
         Paragraph(f"{tick(is_cheq)}  Cheque   No: ______________",             nsv),
-        Paragraph(f"{tick(is_card)}  Credit Card{txn_str if is_card else ''}", nsv),
+        Paragraph(f"{tick(is_card)}  Credit Card",                             nsv),
         Paragraph(f"{tick(is_ins)}   Insurance   Carrier: ______________",     nsv),
         Paragraph(
-            f"{tick(is_upi)}  Others: {'UPI / Online' + txn_str if is_upi else '______________'}",
+            f"{tick(is_upi)}  Others: {'UPI / Online' if is_upi else '______________'}",
             nsv),
     ]
+
+    # Add Transaction ID as a dedicated line if present
+    if txn_id:
+        notes_blk.append(Spacer(1, 3 * mm))
+        notes_blk.append(
+            Paragraph(
+                f"<b>Transaction ID:</b>  {_strip_xml(txn_id)}",
+                _s("_TXN", fontSize=9, fontName="Helvetica", textColor=BLUE_DARK, leading=13),
+            )
+        )
 
     # Financial rows
     subt  = float(bill_data.get("subtotal", 0))
