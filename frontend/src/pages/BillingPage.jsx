@@ -638,6 +638,18 @@ export default function BillingPage() {
                 <span>Total</span>
                 <span className="text-primary-600">₹{Number(selectedBill.total || 0).toLocaleString()}</span>
               </div>
+              <div className="mt-4 pt-4 border-t border-surface-200">
+                <div className="flex justify-between text-sm">
+                  <span className="text-surface-500">Payment Mode</span>
+                  <span className="text-surface-900 font-medium capitalize">{selectedBill.payment_mode}</span>
+                </div>
+                {selectedBill.transaction_id && (
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-surface-500">Transaction ID</span>
+                    <span className="text-surface-900 font-medium">{selectedBill.transaction_id}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-3 mt-8">
