@@ -355,6 +355,7 @@ def generate_receipt_pdf(
     nbv = _s("_NBV", fontSize=8, fontName="Helvetica-Bold", textColor=TEXT_DARK)
 
     notes_txt = _strip_xml(bill_data.get("notes"))
+    txn_str = f" (Txn ID: {bill_data.get('transaction_id')})" if bill_data.get("transaction_id") else ""
 
     notes_blk = [
         Paragraph("Notes", _s("_NL", fontSize=9, fontName="Helvetica-Bold",
@@ -367,10 +368,10 @@ def generate_receipt_pdf(
         Spacer(1, 2 * mm),
         Paragraph(f"{tick(is_cash)}  Cash",                                    nsv),
         Paragraph(f"{tick(is_cheq)}  Cheque   No: ______________",             nsv),
-        Paragraph(f"{tick(is_card)}  Credit Card",                             nsv),
+        Paragraph(f"{tick(is_card)}  Credit Card{txn_str if is_card else ''}", nsv),
         Paragraph(f"{tick(is_ins)}   Insurance   Carrier: ______________",     nsv),
         Paragraph(
-            f"{tick(is_upi)}  Others: {'UPI / Online' if is_upi else '______________'}",
+            f"{tick(is_upi)}  Others: {'UPI / Online' + txn_str if is_upi else '______________'}",
             nsv),
     ]
 

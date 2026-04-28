@@ -223,6 +223,7 @@ async def download_bill_pdf(
         "total": float(bill.total),
         "status": bill.status,
         "payment_mode": bill.payment_mode,
+        "transaction_id": bill.transaction_id,
         "notes": bill.notes,
         "created_at": bill.created_at,
     }
@@ -335,6 +336,7 @@ async def email_bill_receipt(
         "total": float(bill.total),
         "status": bill.status,
         "payment_mode": bill.payment_mode,
+        "transaction_id": bill.transaction_id,
         "notes": bill.notes,
         "created_at": bill.created_at,
     }
