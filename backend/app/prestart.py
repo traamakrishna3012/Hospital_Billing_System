@@ -44,14 +44,15 @@ async def run_migrations():
                 await db.rollback()
                 logger.warning(f"Migration (tenants) skipped: {e}")
 
-            # 4. Manual Migration - BillItems: code column
+            # 4. Manual Migration - BillItems: code column & Bills: transaction_id
             try:
                 await db.execute(text("ALTER TABLE bill_items ADD COLUMN IF NOT EXISTS code VARCHAR(50)"))
+                await db.execute(text("ALTER TABLE bills ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(100)"))
                 await db.commit()
-                logger.info("Migration: bill_items.code column added")
+                logger.info("Migration: bill_items.code and bills.transaction_id columns added")
             except Exception as e:
                 await db.rollback()
-                logger.warning(f"Migration (bill_items.code) skipped: {e}")
+                logger.warning(f"Migration (bill_items.code / bills.transaction_id) skipped: {e}")
 
             # 5. Manual Migration - Users: modules JSONB column
             try:

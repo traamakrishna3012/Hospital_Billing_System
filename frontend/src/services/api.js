@@ -106,6 +106,7 @@ export const testAPI = {
   bulkImport: (formData) => api.post('/tests/bulk-upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
+  exportCSV: () => api.get('/tests/export-csv', { responseType: 'blob' }),
 };
 
 // ── Billing API ──────────────────────────────────────────────

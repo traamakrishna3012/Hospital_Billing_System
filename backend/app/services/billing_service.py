@@ -98,6 +98,7 @@ async def create_bill(
         status=data.status,
         notes=data.notes,
         payment_mode=data.payment_mode,
+        transaction_id=data.transaction_id,
         **totals,
     )
     db.add(bill)

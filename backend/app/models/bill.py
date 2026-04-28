@@ -55,6 +55,7 @@ class Bill(Base):
     payment_mode: Mapped[str] = mapped_column(
         String(20), default="cash", server_default="cash"
     )  # cash | card | upi | online
+    transaction_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # ── Relationships ─────────────────────────────────────────
     items: Mapped[list["BillItem"]] = relationship(

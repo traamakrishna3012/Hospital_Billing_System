@@ -25,6 +25,7 @@ export default function BillingPage() {
   // Create Bill Modal State
   const [createModal, setCreateModal] = useState(false);
   const [detailModal, setDetailModal] = useState(false);
+  const [payModal, setPayModal] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
 
   // Form Data
@@ -40,9 +41,12 @@ export default function BillingPage() {
     discount_type: 'percent', // 'percent' or 'flat'
     discount_value: '0',
     payment_mode: 'cash',
+    transaction_id: '',
     status: 'paid',
     notes: '',
   });
+
+  const [payForm, setPayForm] = useState({ payment_mode: 'cash', transaction_id: '' });
 
   const [clinicProfile, setClinicProfile] = useState(null);
 
@@ -82,7 +86,7 @@ export default function BillingPage() {
       setBillForm({
         patient_id: '', doctor_id: '', include_doctor_fee: false,
         items: [{ description: '', unit_price: '', quantity: 1, medical_test_id: '', code: '' }],
-        tax_percent: '0', discount_type: 'percent', discount_value: '0', payment_mode: 'cash', status: 'paid', notes: '',
+        tax_percent: '0', discount_type: 'percent', discount_value: '0', payment_mode: 'cash', transaction_id: '', status: 'paid', notes: '',
       });
       setPatientSearch('');
       setDoctorSearch('');
@@ -145,6 +149,11 @@ export default function BillingPage() {
 
   const handleCreateBill = async (e) => {
     e.preventDefault();
+    if (['upi', 'card', 'online'].includes(billForm.payment_mode) && !billForm.transaction_id) {
+        toast.error('Transaction ID is required for online payments');
+        return;
+    }
+
     let discountPct = 0;
     const sub = calcSubtotal();
     const rawValue = parseFloat(billForm.discount_value) || 0;
@@ -167,6 +176,7 @@ export default function BillingPage() {
       tax_percent: billForm.tax_percent ? parseFloat(billForm.tax_percent) : 0,
       discount_percent: discountPct,
       payment_mode: billForm.payment_mode,
+      transaction_id: billForm.transaction_id || undefined,
       status: billForm.status,
       notes: billForm.notes || null,
     };
@@ -184,10 +194,13 @@ export default function BillingPage() {
     }
 
     try {
-      await billAPI.create(payload);
+      const response = await billAPI.create(payload);
       toast.success('Bill created successfully!');
       setCreateModal(false);
       loadBills();
+      
+      // Auto Receipt Generation
+      downloadPDF(response.data.id);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to create bill');
     }
@@ -200,6 +213,32 @@ export default function BillingPage() {
       setDetailModal(true);
     } catch (err) {
       toast.error('Failed to load bill');
+    }
+  };
+
+  const openPayModal = () => {
+    setPayForm({ payment_mode: 'cash', transaction_id: '' });
+    setPayModal(true);
+  };
+
+  const handlePayNow = async (e) => {
+    e.preventDefault();
+    if (['upi', 'card', 'online'].includes(payForm.payment_mode) && !payForm.transaction_id) {
+        toast.error('Transaction ID is required for online payments');
+        return;
+    }
+    try {
+      await billAPI.update(selectedBill.id, {
+          status: 'paid',
+          payment_mode: payForm.payment_mode,
+          transaction_id: payForm.transaction_id || undefined
+      });
+      toast.success('Payment recorded successfully');
+      setPayModal(false);
+      setDetailModal(false);
+      loadBills();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to record payment');
     }
   };
 
@@ -493,13 +532,19 @@ export default function BillingPage() {
             </div>
             <div>
               <label className="label-text">Mode</label>
-              <select value={billForm.payment_mode} onChange={(e) => setBillForm({ ...billForm, payment_mode: e.target.value })} className="input-field text-sm">
+              <select value={billForm.payment_mode} onChange={(e) => setBillForm({ ...billForm, payment_mode: e.target.value, transaction_id: '' })} className="input-field text-sm">
                 <option value="cash">Cash</option>
                 <option value="card">Card</option>
                 <option value="upi">UPI</option>
                 <option value="online">Online</option>
               </select>
             </div>
+            {['upi', 'card', 'online'].includes(billForm.payment_mode) && (
+              <div>
+                <label className="label-text">Transaction ID *</label>
+                <input required value={billForm.transaction_id} onChange={(e) => setBillForm({ ...billForm, transaction_id: e.target.value })} className="input-field text-sm" placeholder="e.g. TXN12345" />
+              </div>
+            )}
             <div>
               <label className="label-text">Status</label>
               <select value={billForm.status} onChange={(e) => setBillForm({ ...billForm, status: e.target.value })} className="input-field text-sm">
@@ -596,7 +641,12 @@ export default function BillingPage() {
             </div>
 
             <div className="flex gap-3 mt-8">
-              <button onClick={() => downloadPDF(selectedBill.id)} className="btn-primary flex items-center gap-2">
+              {selectedBill.status === 'unpaid' && (
+                <button onClick={openPayModal} className="btn-primary flex items-center gap-2 mr-auto">
+                  Pay Now
+                </button>
+              )}
+              <button onClick={() => downloadPDF(selectedBill.id)} className="btn-secondary flex items-center gap-2">
                 <Download className="w-4 h-4" /> Download PDF
               </button>
               <button onClick={() => sendEmail(selectedBill.id)} className="btn-secondary flex items-center gap-2">
@@ -605,6 +655,31 @@ export default function BillingPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* ── Pay Now Modal ──────────────────────────────── */}
+      <Modal isOpen={payModal} onClose={() => setPayModal(false)} title="Record Payment" size="sm">
+        <form onSubmit={handlePayNow} className="space-y-4">
+          <div>
+            <label className="label-text">Payment Mode</label>
+            <select value={payForm.payment_mode} onChange={(e) => setPayForm({ ...payForm, payment_mode: e.target.value, transaction_id: '' })} className="input-field">
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="upi">UPI</option>
+              <option value="online">Online</option>
+            </select>
+          </div>
+          {['upi', 'card', 'online'].includes(payForm.payment_mode) && (
+            <div>
+              <label className="label-text">Transaction ID *</label>
+              <input required value={payForm.transaction_id} onChange={(e) => setPayForm({ ...payForm, transaction_id: e.target.value })} className="input-field" placeholder="e.g. TXN12345" />
+            </div>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setPayModal(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" className="btn-primary">Confirm Payment</button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

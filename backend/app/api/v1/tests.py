@@ -152,7 +152,13 @@ async def bulk_upload_tests(
     existing_codes_result = await db.execute(
         select(MedicalTest.code).where(MedicalTest.tenant_id == tenant_id)
     )
-    existing_codes = {row[0] for row in existing_codes_result.all()}
+    existing_codes = {row[0] for row in existing_codes_result.all() if row[0]}
+
+    # Pre-load existing test names (case-insensitive)
+    existing_names_result = await db.execute(
+        select(MedicalTest.name).where(MedicalTest.tenant_id == tenant_id)
+    )
+    existing_names = {row[0].lower() for row in existing_names_result.all()}
 
     for _, row in df.iterrows():
         name = str(row.get("name", "")).strip()
@@ -193,8 +199,14 @@ async def bulk_upload_tests(
                 detail=f"Mandatory 'code' is missing for test: '{name}'. Please ensure every row has a unique test code.",
             )
 
-        # Skip duplicate test codes
-        if code in existing_codes:
+        if not re.match(r"^[a-zA-Z0-9\s\-_]+$", name) or len(name) < 3 or len(name) > 100:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid test name '{name}'. Only alphanumeric characters, spaces, hyphens, and underscores are allowed. Length must be between 3 and 100."
+            )
+
+        # Skip duplicate test codes or names
+        if code in existing_codes or name.lower() in existing_names:
             records_skipped += 1
             continue
 
@@ -208,6 +220,7 @@ async def bulk_upload_tests(
         )
         db.add(test)
         existing_codes.add(code)  # Track newly added codes within this batch
+        existing_names.add(name.lower())
         records_added += 1
 
     await db.commit()
@@ -390,6 +403,19 @@ async def create_test(
     tenant_id: TenantID,
     current_user: CurrentUser,
 ):
+    # Check for duplicate name
+    existing_name = await db.execute(
+        select(MedicalTest).where(
+            MedicalTest.tenant_id == tenant_id,
+            func.lower(MedicalTest.name) == data.name.lower()
+        )
+    )
+    if existing_name.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A test with this name already exists."
+        )
+
     test = MedicalTest(tenant_id=tenant_id, **data.model_dump())
     db.add(test)
     await db.commit()
@@ -422,6 +448,19 @@ async def update_test(
     if not test:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
 
+    if data.name is not None and data.name.lower() != test.name.lower():
+        existing_name = await db.execute(
+            select(MedicalTest).where(
+                MedicalTest.tenant_id == tenant_id,
+                func.lower(MedicalTest.name) == data.name.lower()
+            )
+        )
+        if existing_name.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A test with this name already exists."
+            )
+
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(test, key, value)
 
@@ -448,3 +487,43 @@ async def delete_test(
 
     await db.delete(test)
     await db.commit()
+
+
+from fastapi.responses import Response
+
+@router.get("/export-csv", summary="Export tests as CSV")
+async def export_tests_csv(
+    db: DBSession,
+    tenant_id: TenantID,
+    current_user: CurrentUser,
+):
+    result = await db.execute(
+        select(MedicalTest)
+        .options(selectinload(MedicalTest.category))
+        .where(MedicalTest.tenant_id == tenant_id)
+        .order_by(MedicalTest.name)
+    )
+    tests = result.scalars().all()
+    
+    data = []
+    for t in tests:
+        data.append({
+            "Code": t.code or "",
+            "Test Name": t.name,
+            "Price": float(t.price),
+            "Category": t.category.name if t.category else "",
+            "Status": "Active" if t.is_active else "Inactive",
+            "Description": t.description or "",
+        })
+        
+    df = pd.DataFrame(data)
+    csv_buffer = io.StringIO()
+    df.to_csv(csv_buffer, index=False)
+    
+    return Response(
+        content=csv_buffer.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": 'attachment; filename="test_master.csv"'
+        }
+    )

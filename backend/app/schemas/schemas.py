@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -270,7 +270,7 @@ class TestCategoryResponse(BaseModel):
 
 
 class MedicalTestCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
+    name: str = Field(..., min_length=3, max_length=100, pattern=r"^[a-zA-Z0-9\s\-_]+$")
     description: Optional[str] = None
     price: float = Field(..., ge=0)
     code: Optional[str] = Field(None, max_length=50)
@@ -278,7 +278,7 @@ class MedicalTestCreate(BaseModel):
 
 
 class MedicalTestUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    name: Optional[str] = Field(None, min_length=3, max_length=100, pattern=r"^[a-zA-Z0-9\s\-_]+$")
     description: Optional[str] = None
     price: Optional[float] = Field(None, ge=0)
     code: Optional[str] = Field(None, max_length=50)
@@ -337,6 +337,13 @@ class BillCreate(BaseModel):
     notes: Optional[str] = None
     payment_mode: str = Field(default="cash", pattern="^(cash|card|upi|online)$")
     status: str = Field(default="paid", pattern="^(paid|unpaid|cancelled)$")
+    transaction_id: Optional[str] = Field(None, max_length=100)
+
+    @model_validator(mode="after")
+    def validate_transaction_id(self) -> "BillCreate":
+        if self.payment_mode in ("card", "upi", "online") and not self.transaction_id:
+            raise ValueError("Transaction ID is mandatory for online payment modes.")
+        return self
 
 
 class BillUpdate(BaseModel):
@@ -344,6 +351,7 @@ class BillUpdate(BaseModel):
     notes: Optional[str] = None
     payment_mode: Optional[str] = Field(None, pattern="^(cash|card|upi|online)$")
     discount_percent: Optional[float] = Field(None, ge=0, le=100)
+    transaction_id: Optional[str] = Field(None, max_length=100)
 
 
 class BillResponse(BaseModel):
@@ -362,6 +370,7 @@ class BillResponse(BaseModel):
     notes: Optional[str] = None
     pdf_url: Optional[str] = None
     payment_mode: str
+    transaction_id: Optional[str] = None
     items: list[BillItemResponse] = []
     patient: Optional[PatientResponse] = None
     doctor: Optional[DoctorResponse] = None

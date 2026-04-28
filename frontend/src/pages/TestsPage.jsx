@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FlaskConical, Plus, Pencil, Trash2, Tag, UploadCloud } from 'lucide-react';
+import { FlaskConical, Plus, Pencil, Trash2, Tag, UploadCloud, Download } from 'lucide-react';
+import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 import { testAPI } from '../services/api';
 import { SearchInput, Pagination, Modal, EmptyState, LoadingSpinner } from '../components/UI';
@@ -126,6 +127,18 @@ export default function TestsPage() {
     }
   };
 
+  const handleExport = async () => {
+    const toastId = toast.loading('Downloading Test Master...');
+    try {
+      const res = await testAPI.exportCSV();
+      const blob = new Blob([res.data], { type: 'text/csv' });
+      saveAs(blob, 'test_master.csv');
+      toast.success('Download complete', { id: toastId });
+    } catch (err) {
+      toast.error('Failed to download Test Master', { id: toastId });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -143,6 +156,9 @@ export default function TestsPage() {
           />
           <button onClick={() => setBulkModalOpen(true)} className="btn-secondary flex items-center justify-center gap-2 flex-1 sm:flex-initial">
              <UploadCloud className="w-4 h-4" /> Bulk Upload
+          </button>
+          <button onClick={handleExport} className="btn-secondary flex items-center justify-center gap-2 flex-1 sm:flex-initial">
+             <Download className="w-4 h-4" /> Download Test Master
           </button>
           <button onClick={() => setCatModalOpen(true)} className="btn-secondary flex items-center justify-center gap-2 flex-1 sm:flex-initial">
             <Tag className="w-4 h-4" /> Add Category
